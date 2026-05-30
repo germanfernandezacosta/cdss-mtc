@@ -1,9 +1,15 @@
-import { FukuokaProposal, KANTResult } from '@/lib/kant/validator';
+/**
+ * Foucault v2.2 — Tipos del agente archivista
+ * Adaptado a KANT v2.2 con campos legacy para compatibilidad.
+ */
+
+import { KantResult } from "@/lib/kant/types";
 
 export interface FoucaultPatientContext {
-  id?: string;
-  age?: number;
-  sex?: string;
+  id: string;
+  age: number;
+  sex: "M" | "F"; // MTC: Masculino (Yang) / Femenino (Yin)
+  patientHash?: string;
   pregnancy?: {
     active: boolean;
     trimester?: number;
@@ -23,18 +29,30 @@ export interface FoucaultInput {
   clinicalInput: FoucaultClinicalInput;
   fukuokaResult: {
     request_id: string;
-    data: FukuokaProposal;
+    data: {
+      syndrome_analysis: Array<{
+        syndrome_name: string;
+        confidence: number;
+        supporting_evidence: string[];
+      }>;
+      treatment_proposal: {
+        acupuncture_points: string[];
+        herbal_formula: string | null;
+        rationale: string;
+      };
+    };
   };
-  kantResult: KANTResult;
+  kantResult: KantResult;
   generatedAt: string;
 }
 
 export interface AHPRAFlag {
   ruleId: string;
   term: string;
-  location: 'empathic_content' | 'original_input';
-  severity: 'CRITICAL' | 'WARNING';
+  location: "empathic_content" | "original_input" | "forensic_content";
+  severity: "CRITICAL" | "WARNING" | "ADVISORY";
   replacement: string;
+  reason: string;
 }
 
 export interface FoucaultOutput {

@@ -5,7 +5,7 @@ export function buildForensicHtml(input: FoucaultInput): string {
   const kantColor = kantResult.verdict === 'ROJO' ? '#dc2626' : kantResult.verdict === 'AMARILLO' ? '#d97706' : '#16a34a';
 
   const violationsHtml = kantResult.violations.length
-    ? kantResult.violations.map(v => 
+    ? kantResult.violations.map((v: any) => 
         `<div style="margin: 4px 0; padding: 8px; background: ${v.severity === 'ROJO' ? '#fee2e2' : '#fef3c7'}; border-radius: 4px;">
           <strong>[${v.severity}] ${v.ruleId}:</strong> ${v.message}
         </div>`
@@ -61,7 +61,7 @@ export function buildForensicHtml(input: FoucaultInput): string {
 
   <div class="section">
     <h2>3. ANÁLISIS FUKUOKA-H</h2>
-    ${fukuokaResult.data.syndrome_analysis.map((s, i) => `
+    ${fukuokaResult.data.syndrome_analysis.map((s: any, i: number) => `
       <p><strong>Síndrome ${i + 1}:</strong> ${s.syndrome_name} (confianza: ${(s.confidence * 100).toFixed(0)}%)</p>
       <p style="font-style: italic; color: #6b7280;">Evidencia: ${s.supporting_evidence.join(', ')}</p>
     `).join('')}

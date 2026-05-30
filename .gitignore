@@ -34,3 +34,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# RAG Data
+data/vectors/*.db
+data/vectors/*.db-journal
+data/sources/**/*.pdf
+!data/sources/**/.gitkeep

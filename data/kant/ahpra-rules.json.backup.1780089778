@@ -1,0 +1,170 @@
+{
+  "_description": "AHPRA Regulatory Rules for CDSS MTC Premium v2.1 — Australian Health Practitioner Regulation Agency",
+  "_version": "1.0.0",
+  "_effective_date": "2026-05-27",
+  "_jurisdiction": "Australia",
+
+  "advertisingRestrictions": {
+    "_description": "AHPRA National Law Section 133 — Advertising restrictions for registered health practitioners",
+    "prohibitedClaims": [
+      {
+        "claim": "cure",
+        "reason": "AHPRA prohibits claims of 'cure' for any condition. Must use 'may assist with' or 'may help manage'.",
+        "severity": "high",
+        "replacement": "may help manage"
+      },
+      {
+        "claim": "guaranteed results",
+        "reason": "AHPRA prohibits guarantees of treatment outcomes.",
+        "severity": "high",
+        "replacement": "individual results may vary"
+      },
+      {
+        "claim": "100% safe",
+        "reason": "AHPRA prohibits absolute safety claims. Must acknowledge risks.",
+        "severity": "high",
+        "replacement": "generally well-tolerated with appropriate screening"
+      },
+      {
+        "claim": "no side effects",
+        "reason": "AHPRA requires disclosure of potential adverse effects.",
+        "severity": "high",
+        "replacement": "potential effects include [list]"
+      },
+      {
+        "claim": "replace conventional medicine",
+        "reason": "AHPRA prohibits claims that complementary therapy replaces conventional medicine.",
+        "severity": "absolute",
+        "replacement": "complementary to conventional medical care"
+      },
+      {
+        "claim": "prevent cancer",
+        "reason": "AHPRA prohibits prevention claims for serious diseases without evidence.",
+        "severity": "absolute",
+        "replacement": null
+      },
+      {
+        "claim": "treat COVID-19",
+        "reason": "AHPRA prohibits COVID-19 treatment claims for unproven therapies.",
+        "severity": "absolute",
+        "replacement": null
+      }
+    ],
+    "mandatoryDisclaimers": [
+      "This information is educational and does not replace professional medical advice.",
+      "Individual results may vary. Consult a registered health practitioner.",
+      "This system is a clinical decision support tool, not a substitute for clinical judgment."
+    ],
+    "titleProtection": {
+      "_description": "AHPRA protects titles: 'doctor', 'physician', 'surgeon', etc.",
+      "protectedTitles": ["doctor", "physician", "surgeon", "medical practitioner", "specialist"],
+      "violationSeverity": "high",
+      "note": "System must NOT refer to acupuncturists as 'doctors' unless they hold medical registration."
+    }
+  },
+
+  "scopeOfPractice": {
+    "_description": "AHPRA Chinese Medicine Board of Australia — Scope of practice for acupuncturists",
+    "registeredPractitionersOnly": {
+      "_description": "Only AHPRA-registered Chinese medicine practitioners can practice acupuncture in Australia",
+      "checkRequired": true,
+      "violationSeverity": "absolute",
+      "message": "Acupuncture must be performed by an AHPRA-registered Chinese medicine practitioner."
+    },
+    "prohibitedProcedures": [
+      {
+        "procedure": "injection therapy",
+        "reason": "Outside scope of acupuncture. Requires medical registration.",
+        "severity": "absolute"
+      },
+      {
+        "procedure": "prescription of pharmaceutical drugs",
+        "reason": "Outside scope. Requires medical/pharmacy registration.",
+        "severity": "absolute"
+      },
+      {
+        "procedure": "diagnostic imaging interpretation",
+        "reason": "Outside scope. Requires radiologist registration.",
+        "severity": "high"
+      },
+      {
+        "procedure": "surgical procedures",
+        "reason": "Outside scope. Requires surgical registration.",
+        "severity": "absolute"
+      }
+    ],
+    "mandatoryReferral": {
+      "_description": "Conditions requiring mandatory referral to medical practitioner",
+      "conditions": [
+        {
+          "condition": "chest pain",
+          "reason": "Possible cardiac emergency. Immediate medical referral required.",
+          "severity": "absolute",
+          "referralUrgency": "immediate"
+        },
+        {
+          "condition": "unexplained weight loss",
+          "reason": "Possible malignancy. Medical investigation required before TCM.",
+          "severity": "high",
+          "referralUrgency": "urgent"
+        },
+        {
+          "condition": "neurological deficits",
+          "reason": "Possible stroke, MS, or other neurological condition.",
+          "severity": "absolute",
+          "referralUrgency": "immediate"
+        },
+        {
+          "condition": "severe abdominal pain",
+          "reason": "Possible surgical abdomen.",
+          "severity": "absolute",
+          "referralUrgency": "immediate"
+        },
+        {
+          "condition": "shortness of breath",
+          "reason": "Possible respiratory or cardiac emergency.",
+          "severity": "absolute",
+          "referralUrgency": "immediate"
+        },
+        {
+          "condition": "mental health crisis",
+          "reason": "Suicidal ideation, psychosis. Mental health professional required.",
+          "severity": "absolute",
+          "referralUrgency": "immediate"
+        },
+        {
+          "condition": "pregnancy complications",
+          "reason": "Bleeding, severe nausea, hypertension. Obstetric referral required.",
+          "severity": "high",
+          "referralUrgency": "urgent"
+        }
+      ]
+    }
+  },
+
+  "informedConsent": {
+    "_description": "AHPRA requirements for informed consent",
+    "mandatoryElements": [
+      "Nature of the treatment (acupuncture, herbal medicine)",
+      "Potential risks and side effects",
+      "Expected benefits and limitations",
+      "Alternative treatments available",
+      "Right to refuse or withdraw consent",
+      "Privacy and data handling (SHA-256 anonymization)"
+    ],
+    "documentationRequired": true,
+    "languageRequirement": "Must be in language understood by patient (English AU, with interpreter if needed)"
+  },
+
+  "continuingProfessionalDevelopment": {
+    "_description": "AHPRA CPD requirements for practitioners using CDSS",
+    "minimumCPDHours": 20,
+    "period": "annual",
+    "recommendedTopics": [
+      "Clinical decision support systems in TCM",
+      "Herb-drug interactions",
+      "Safety in acupuncture (clean needle technique)",
+      "Evidence-based practice in TCM"
+    ]
+  }
+}

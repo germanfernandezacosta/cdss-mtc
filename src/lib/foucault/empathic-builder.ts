@@ -1,38 +1,60 @@
 import { FoucaultInput, AHPRAFlag } from './types';
-import { scanTextForAHPRA } from './ahpra-filter';
+import { scanTextForAHPRA, sanitizeForAHPRA } from './ahpra-filter';
 
+/**
+ * Construye el PDF empático para el paciente.
+ * AHPRA-safe: nunca crea expectativas irrazonables de beneficio.
+ * Usa lenguaje condicional y tradicional, nunca declarativo.
+ */
 export function buildEmpathicHtml(input: FoucaultInput): { html: string; flags: AHPRAFlag[] } {
   const { clinicalInput, fukuokaResult, kantResult, generatedAt } = input;
   const syndrome = fukuokaResult.data.syndrome_analysis[0];
   const proposal = fukuokaResult.data.treatment_proposal;
 
   let empathicText = '';
+
+  // ─── Saludo y contexto ───
   empathicText += 'Hola. Hemos revisado cuidadosamente lo que nos has compartido sobre tu salud. ';
   empathicText += 'Entendemos que has venido con ' + clinicalInput.symptoms.toLowerCase() + '. ';
 
+  // ─── Síndrome MTC (siempre con disclaimer) ───
   if (syndrome) {
     empathicText += 'Desde la perspectiva de la Medicina Tradicional China, tu cuerpo nos esta mostrando un patron conocido como "' + syndrome.syndrome_name + '". ';
     empathicText += 'Esto describe como tu energia vital (Qi) necesita apoyo, especialmente en la digestion y el descanso. ';
     empathicText += 'No es un diagnostico medico occidental, sino una forma tradicional de entender tu equilibrio interno. ';
   }
 
-  if (kantResult.verdict === 'ROJO') {
+  // ─── Estado KANT ───
+  const normalizedKantStatus = String(kantResult.verdict).toUpperCase();
+  const isKantRed = normalizedKantStatus === 'ROJO' || normalizedKantStatus === 'RED';
+  const isKantYellow = normalizedKantStatus === 'AMARILLO' || normalizedKantStatus === 'YELLOW';
+
+  if (isKantRed) {
     empathicText += '\n\nNuestro sistema de seguridad clinica ha detectado que algunos elementos de tu plan inicial requieren ajustes importantes antes de poder continuar. ';
     empathicText += 'Esto es una medida de proteccion estandar. Tu terapeuta revisara contigo los detalles seguros y personalizados en tu proxima consulta. ';
     empathicText += 'No te preocupes: este tipo de revision es habitual y garantiza que todo lo que hagamos sea apropiado para ti en este momento.';
-  } else if (kantResult.verdict === 'AMARILLO') {
+  } else if (isKantYellow) {
     empathicText += '\n\nHemos preparado una propuesta inicial, pero tu terapeuta realizara algunas verificaciones adicionales antes de comenzar. ';
     empathicText += 'Esto nos permite adaptar todo con la maxima precision a tu situacion actual.';
   } else {
+    // ─── Tratamiento (AHPRA-safe: condicional, nunca declarativo) ───
     empathicText += '\n\nBasandonos en nuestro analisis, hemos preparado un plan personalizado que incluye acupuntura y, si es apropiado, apoyo herbal. ';
-    empathicText += 'Los puntos seleccionados trabajan para tonificar tu energia y mejorar tu descanso. ';
+
+    // Puntos: lenguaje condicional
+    if (proposal.acupuncture_points && proposal.acupuncture_points.length > 0) {
+      empathicText += 'Los puntos seleccionados se utilizan tradicionalmente para apoyar el equilibrio energetico y pueden ayudar a mejorar tu bienestar general. ';
+    }
+
+    // Hierbas: solo mencionar nombre, NUNCA dosis ni claims de eficacia
     if (proposal.herbal_formula) {
-      empathicText += 'La formula ' + proposal.herbal_formula + ' se utiliza tradicionalmente para nutrir el bazo y el corazon, promoviendo mejor sueno y digestion. ';
+      empathicText += 'La formula ' + proposal.herbal_formula + ' se utiliza en la tradicion de la Medicina China para apoyar la funcion digestiva y el descanso. ';
+      empathicText += 'Tu terapeuta registrado te explicara los detalles si considera que es apropiado para tu caso. ';
     }
   }
 
+  // ─── Próximos pasos ───
   empathicText += '\n\nProximos pasos:\n';
-  if (kantResult.verdict === 'ROJO') {
+  if (isKantRed) {
     empathicText += '• Tu terapeuta te explicara los ajustes de seguridad en persona.\n';
     empathicText += '• Se reprogramara una nueva propuesta adaptada a ti.\n';
   } else {
@@ -41,13 +63,16 @@ export function buildEmpathicHtml(input: FoucaultInput): { html: string; flags: 
   }
   empathicText += '• Si tienes cualquier duda, contacta con la clinica antes de tu cita.';
 
+  // ─── Disclaimer legal obligatorio AHPRA ───
   empathicText += '\n\nEste documento es informativo y no sustituye el consejo medico de tu medico de cabecera o especialista. ';
   empathicText += 'La acupuntura y la fitoterapia son terapias complementarias. Los resultados varian segun cada persona. ';
   empathicText += 'Nunca modifiques tu medicacion prescrita sin consultar a tu medico.';
 
-  const { sanitized, flags } = scanTextForAHPRA(empathicText, 'empathic_content');
+  // ─── Sanitizar y escanear ───
+  const { sanitized } = sanitizeForAHPRA(empathicText);
+  const { flags } = scanTextForAHPRA(empathicText, "empathic_content");
 
-  const kantColor = kantResult.verdict === 'ROJO' ? '#dc2626' : kantResult.verdict === 'AMARILLO' ? '#d97706' : '#16a34a';
+  const kantColor = isKantRed ? '#dc2626' : isKantYellow ? '#d97706' : '#16a34a';
 
   const html = `<!DOCTYPE html>
 <html lang="es">
@@ -77,7 +102,7 @@ export function buildEmpathicHtml(input: FoucaultInput): { html: string; flags: 
   </div>
 
   <div class="content">
-    ${sanitized.split('\n').map(line => {
+    ${sanitized.split('\n').map((line: string) => {
       if (line.startsWith('•')) return `<p style="margin-left: 15px;">${line}</p>`;
       if (line.trim() === '') return '<br>';
       return `<p>${line}</p>`;

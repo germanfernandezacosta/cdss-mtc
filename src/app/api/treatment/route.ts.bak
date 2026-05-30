@@ -1,0 +1,179 @@
+// src/app/api/treatment/route.ts
+// API Route de Tratamiento — RAG INTEGRADO v2.1
+// 4 cambios manuales aplicados y marcados con [RAG-CHANGE]
+
+import { NextRequest, NextResponse } from 'next/server';
+import { runKANTChecks } from '@/lib/kant/engine';
+import { buildRAGContext } from '@/lib/rag/contextBuilder';           // [RAG-CHANGE-1] IMPORT
+import { generateTreatment } from '@/lib/fukuoka-h/engine';            // Stub de FUKUOKA-H
+import { deidentifyPatient } from '@/lib/privacy/deidentify';          // Anonimización
+
+export interface TreatmentRequest {
+  patient: {
+    name: string;
+    dob: string;
+    gender: string;
+    symptoms: string;
+    diagnosis?: string;
+    medicalHistory?: string;
+    medications?: string[];
+    allergies?: string[];
+  };
+  consultation: {
+    goal: string;
+    preferences?: string[];
+  };
+}
+
+export interface TreatmentResponse {
+  syndrome: string;
+  points: Array<{ name: string; location: string; indication: string }>;
+  herbs: Array<{ name: string; dose: string; preparation: string }>;
+  rationale: string;
+  safety: {
+    passed: boolean;
+    warnings: string[];
+    contraindications: string[];
+    summary: string;
+  };
+  citations: Array<{                                        // [RAG-CHANGE-4] RETURN
+    document: string;
+    pageStart: number;
+    pageEnd: number;
+    excerpt: string;
+  }>;
+  model: string;
+  timestamp: string;
+}
+
+export async function POST(req: NextRequest) {
+  try {
+    const body: TreatmentRequest = await req.json();
+    const { patient, consultation } = body;
+
+    // ============================================================
+    // PASO 0: ANONIMIZACIÓN (antes de cualquier API externa)
+    // ============================================================
+    const anonymized = deidentifyPatient({
+      name: patient.name,
+      dob: patient.dob,
+      symptoms: patient.symptoms,
+      medicalHistory: patient.medicalHistory || ''
+    });
+
+    // ============================================================
+    // PASO 1: KANT SAFETY CHECK (local, deterministic)
+    // ============================================================
+    const kantResults = runKANTChecks({
+      symptoms: patient.symptoms,
+      diagnosis: patient.diagnosis,
+      medications: patient.medications,
+      allergies: patient.allergies,
+      age: calculateAge(patient.dob),
+      isPregnant: patient.medicalHistory?.toLowerCase().includes('pregnant') || false
+    });
+
+    if (!kantResults.passed && kantResults.critical.length > 0) {
+      return NextResponse.json({
+        error: 'SAFETY_BLOCKED',
+        message: 'La consulta no pasa los controles de seguridad KANT',
+        safety: kantResults,
+        timestamp: new Date().toISOString()
+      }, { status: 403 });
+    }
+
+    // ============================================================
+    // PASO 2: RAG — Recuperar contexto documental                [RAG-CHANGE-2]
+    // ============================================================
+    const ragQuery = `${patient.symptoms} ${patient.diagnosis || ''} ${consultation.goal}`;
+    const ragContext = await buildRAGContext({
+      query: ragQuery,
+      domain: 'clinical',
+      maxChunks: 5,
+      minSimilarity: 0.7
+    });
+
+    // ============================================================
+    // PASO 3: FUKUOKA-H — Inferencia clínica con contexto RAG    [RAG-CHANGE-3]
+    // ============================================================
+    const systemPrompt = `Eres FUKUOKA-H, un asistente clínico especializado en Medicina Tradicional China (MTC).
+
+REGLAS DE SEGURIDAD (KANT v2.1):
+${kantResults.summary}
+${kantResults.warnings.length > 0 ? '\nADVERTENCIAS:\n' + kantResults.warnings.join('\n') : ''}
+
+CONTEXTO DOCUMENTAL (basado en evidencia clínica):
+${ragContext.context}
+
+INSTRUCCIONES:
+1. Analiza el patrón (síndrome) según teoría Zang-Fu y canales
+2. Propone puntos de acupuntura con localización anatómica precisa
+3. Propone fórmula/herbas con dosis seguras (referencia Bensky/Chen)
+4. Justifica cada decisión con rationale clínico
+5. Cita las fuentes del CONTEXTO DOCUMENTAL usando los IDs proporcionados
+
+Responde ÚNICAMENTE en JSON válido con esta estructura:
+{
+  "syndrome": "string",
+  "points": [{"name": "string", "location": "string", "indication": "string"}],
+  "herbs": [{"name": "string", "dose": "string", "preparation": "string"}],
+  "rationale": "string",
+  "citedSources": ["string"]
+}`;
+
+    const llmResponse = await generateTreatment({
+      systemPrompt,
+      userPrompt: `Síntomas: ${anonymized.symptoms}\nObjetivo: ${consultation.goal}`,
+      model: process.env.LLM_MODEL || 'gpt-3.5-turbo'  // TODO: migrar a Azure OpenAI
+    });
+
+    // ============================================================
+    // PASO 4: Construir respuesta con citas RAG                  [RAG-CHANGE-4]
+    // ============================================================
+    const response: TreatmentResponse = {
+      syndrome: llmResponse.syndrome,
+      points: llmResponse.points,
+      herbs: llmResponse.herbs,
+      rationale: llmResponse.rationale,
+      safety: {
+        passed: kantResults.passed,
+        warnings: kantResults.warnings,
+        contraindications: kantResults.contraindications,
+        summary: kantResults.summary
+      },
+      citations: ragContext.citations.map(c => ({   // ← [RAG-CHANGE-4] DEVOLVER CITATIONS
+        document: c.document,
+        pageStart: c.pageStart,
+        pageEnd: c.pageEnd,
+        excerpt: c.excerpt
+      })),
+      model: process.env.LLM_MODEL || 'gpt-3.5-turbo',
+      timestamp: new Date().toISOString()
+    };
+
+    // ============================================================
+    // PASO 5: FOUCAULT — Generar PDFs (async, no bloquea respuesta)
+    // ============================================================
+    // TODO: Guardar en EHR persistente (SQLite)
+    // generateForensicPDF({ ...response, patientHash: anonymized.patientHash });
+
+    return NextResponse.json(response, { status: 200 });
+
+  } catch (error: any) {
+    console.error('[Treatment API]', error);
+    return NextResponse.json({
+      error: 'INTERNAL_ERROR',
+      message: error.message,
+      timestamp: new Date().toISOString()
+    }, { status: 500 });
+  }
+}
+
+function calculateAge(dob: string): number {
+  const birth = new Date(dob);
+  const now = new Date();
+  let age = now.getFullYear() - birth.getFullYear();
+  const m = now.getMonth() - birth.getMonth();
+  if (m < 0 || (m === 0 && now.getDate() < birth.getDate())) age--;
+  return age;
+}

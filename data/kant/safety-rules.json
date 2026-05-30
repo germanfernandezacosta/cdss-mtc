@@ -1,0 +1,312 @@
+{
+  "_meta": {
+    "version": "2.0.0",
+    "schema": "kant-safety-rules",
+    "lastUpdated": "2026-05-26",
+    "jurisdiction": "CEMeTC-INT",
+    "deterministic": true
+  },
+  "pregnancy": {
+    "_description": "Contraindicaciones absolutas en embarazo confirmado o sospechado",
+    "forbiddenPoints": [
+      { "point": "SP6", "name": "Sanyinjiao", "reason": "Induce contracciones uterinas", "severity": "absolute", "trimester": "all" },
+      { "point": "LI4", "name": "Hegu", "reason": "Potente inductor del trabajo de parto", "severity": "absolute", "trimester": "all" },
+      { "point": "GB21", "name": "Jianjing", "reason": "Contraindicado en embarazo por riesgo de aborto", "severity": "absolute", "trimester": "all" },
+      { "point": "CV3", "name": "Zhongji", "reason": "Punto Mu de vejiga, zona pelviana profunda", "severity": "absolute", "trimester": "all" },
+      { "point": "CV4", "name": "Guanyuan", "reason": "Punto Mu de intestino delgado, zona pelviana", "severity": "absolute", "trimester": "all" },
+      { "point": "CV5", "name": "Shimen", "reason": "Punto Mu de triple recalentador, riesgo documentado", "severity": "absolute", "trimester": "all" },
+      { "point": "CV6", "name": "Qihai", "reason": "Movimiento de Qi inferior, riesgo en embarazo", "severity": "absolute", "trimester": "all" },
+      { "point": "CV7", "name": "Yinjiao", "reason": "Intersección con REN, zona pelviana profunda", "severity": "absolute", "trimester": "all" },
+      { "point": "BL60", "name": "Kunlun", "reason": "Contraindicado en embarazo por riesgo de aborto", "severity": "absolute", "trimester": "all" },
+      { "point": "BL67", "name": "Zhiyin", "reason": "Toque para versión fetal solo bajo supervisión médica", "severity": "relative", "trimester": "all", "note": "Solo indicado por obstetra para versión podálica" },
+      { "point": "SI1", "name": "Shaoze", "reason": "Contraindicado en embarazo", "severity": "absolute", "trimester": "all" },
+      { "point": "ST12", "name": "Quepen", "reason": "Zona supraclavicular, riesgo vascular", "severity": "absolute", "trimester": "all" },
+      { "point": "GB26", "name": "Daimai", "reason": "Cinturón de la matriz, contraindicado", "severity": "absolute", "trimester": "all" },
+      { "point": "GB27", "name": "Wushu", "reason": "Zona pelviana lateral", "severity": "absolute", "trimester": "all" },
+      { "point": "GB28", "name": "Weidao", "reason": "Zona pelviana lateral", "severity": "absolute", "trimester": "all" },
+      { "point": "GB29", "name": "Juliao", "reason": "Zona pelviana", "severity": "absolute", "trimester": "all" },
+      { "point": "GB30", "name": "Huantiao", "reason": "Zona glútea profunda, riesgo en embarazo", "severity": "absolute", "trimester": "all" },
+      { "point": "BL31-34", "name": "Baliao (8 agujeros)", "reason": "Zona sacra directamente sobre útero", "severity": "absolute", "trimester": "all" }
+    ],
+    "forbiddenHerbs": [
+      { "herb": "Fu Zi / Aconito", "latin": "Aconitum carmichaelii", "reason": "Extremadamente tóxico, abortivo", "severity": "absolute" },
+      { "herb": "Chuan Wu / Aconito de Sichuan", "latin": "Aconitum spp.", "reason": "Cardiotóxico, abortivo", "severity": "absolute" },
+      { "herb": "Cao Wu / Aconito silvestre", "latin": "Aconitum kusnezoffii", "reason": "Neurotóxico, abortivo", "severity": "absolute" },
+      { "herb": "Ban Xia / Pinellia", "latin": "Pinellia ternata", "reason": "Embriotóxico, mucosa irritante", "severity": "absolute" },
+      { "herb": "Tian Nan Xing / Arisaema", "latin": "Arisaema erubescens", "reason": "Tóxico, abortivo", "severity": "absolute" },
+      { "herb": "Dan Nan Xing / Arisaema preparado con bilis", "latin": "Arisaema cum Bile", "reason": "Derivado tóxico de Arisaema", "severity": "absolute" },
+      { "herb": "Ba Dou / Croton", "latin": "Croton tiglium", "reason": "Purgante violento, abortivo", "severity": "absolute" },
+      { "herb": "Qian Niu Zi / Semilla de campanilla", "latin": "Pharbitis nil", "reason": "Purgante diurético, abortivo", "severity": "absolute" },
+      { "herb": "Gan Sui / Euphorbia Kansui", "latin": "Euphorbia kansui", "reason": "Drástico purgante, abortivo", "severity": "absolute" },
+      { "herb": "Yuan Hua / Flos Genkwa", "latin": "Daphne genkwa", "reason": "Diurético drástico, abortivo", "severity": "absolute" },
+      { "herb": "Jing Da Ji / Euphorbia pekinensis", "latin": "Euphorbia pekinensis", "reason": "Drástico purgante, abortivo", "severity": "absolute" },
+      { "herb": "Shang Lu / Phytolacca", "latin": "Phytolacca acinosa", "reason": "Tóxico, abortivo", "severity": "absolute" },
+      { "herb": "She Xiang / Almizcle", "latin": "Moschus", "reason": "Abortivo potente, contraindicado absoluto", "severity": "absolute" },
+      { "herb": "Bing Lang / Semilla de areca", "latin": "Areca catechu", "reason": "Estimulante uterino", "severity": "absolute" },
+      { "herb": "Lei Wan / Omphalia", "latin": "Omphalia lapidescens", "reason": "Antihelmíntico tóxico", "severity": "absolute" },
+      { "herb": "Wu Gong / Ciempiés", "latin": "Scolopendra subspinipes", "reason": "Tóxico, riesgo embriotoxicidad", "severity": "absolute" },
+      { "herb": "Quan Xie / Escorpión", "latin": "Buthus martensii", "reason": "Tóxico, riesgo embriotoxicidad", "severity": "absolute" },
+      { "herb": "Zhu Sha / Cinabrio", "latin": "Cinnabaris", "reason": "Mercurio, teratogénico", "severity": "absolute" },
+      { "herb": "Xiong Huang / Realgar", "latin": "Realgar", "reason": "Arsénico, teratogénico", "severity": "absolute" },
+      { "herb": "Qing Fen / Calomelanos", "latin": "Calomelas", "reason": "Mercurio, teratogénico", "severity": "absolute" },
+      { "herb": "Lu Hui / Aloe vera chinensis", "latin": "Aloe vera", "reason": "Purgante, estimula contracciones", "severity": "relative", "note": "Evitar en primer trimestre" },
+      { "herb": "Da Huang / Ruibarbo", "latin": "Rheum palmatum", "reason": "Purgante, usar con precaución", "severity": "relative", "note": "Evitar altas dosis en primer trimestre" },
+      { "herb": "Dang Gui / Angelica sinensis", "latin": "Angelica sinensis", "reason": "Potencialmente uterotónico", "severity": "relative", "note": "Segura en dosis culinarias; evitar dosis altas concentradas" },
+      { "herb": "Hong Hua / Cártamo", "latin": "Carthamus tinctorius", "reason": "Activador sangre, potencial abortivo", "severity": "relative", "note": "Evitar en primer trimestre" },
+      { "herb": "Tao Ren / Semilla de melocotón", "latin": "Prunus persica", "reason": "Activador sangre, potencial abortivo", "severity": "relative", "note": "Evitar en primer trimestre" },
+      { "herb": "Yi Mu Cao / Leonurus", "latin": "Leonurus japonicus", "reason": "Uterotónico conocido", "severity": "relative", "note": "Contraindicado en embarazo por tradición" }
+    ]
+  },
+  "herbDrugInteractions": {
+    "_description": "Interacciones hierba-fármaco documentadas con evidencia clínica o farmacológica",
+    "interactions": [
+      {
+        "herb": "Dang Gui / Angelica sinensis",
+        "drugClass": "anticoagulantes",
+        "drugs": ["warfarina", "acenocumarol", "heparina", "apixaban", "rivaroxaban", "dabigatrán"],
+        "mechanism": "Potenciación del efecto anticoagulante por cumarinas naturales en Dang Gui",
+        "severity": "high",
+        "evidence": "case-reports",
+        "recommendation": "Monitorizar INR/TPA. Reducir dosis o suspender hierba. Contraindicado si INR inestable."
+      },
+      {
+        "herb": "Dan Shen / Salvia miltiorrhiza",
+        "drugClass": "anticoagulantes",
+        "drugs": ["warfarina", "acenocumarol", "heparina"],
+        "mechanism": "Inhibición de agregación plaquetaria + interacción con metabolismo de warfarina",
+        "severity": "high",
+        "evidence": "clinical-trial",
+        "recommendation": "Monitorizar INR. Riesgo de sangrado aumentado. Suspender 7 días antes de cirugía."
+      },
+      {
+        "herb": "Ginkgo Biloba / Bai Guo Ye",
+        "drugClass": "anticoagulantes",
+        "drugs": ["warfarina", "aspirina", "clopidogrel"],
+        "mechanism": "Inhibición de agregación plaquetaria por ginkgólidos",
+        "severity": "high",
+        "evidence": "case-reports",
+        "recommendation": "Evitar combinación. Riesgo de hemorragia intracraneal documentado."
+      },
+      {
+        "herb": "Gan Cao / Glycyrrhiza glabra",
+        "drugClass": "diuréticos",
+        "drugs": ["furosemida", "hidroclorotiazida", "espironolactona"],
+        "mechanism": "Efecto mineralocorticoide de glicirricina: hipopotasemia, retención de sodio",
+        "severity": "moderate",
+        "evidence": "pharmacokinetic",
+        "recommendation": "Monitorizar potasio. Evitar uso crónico >4 semanas o dosis >5g/día de raíz."
+      },
+      {
+        "herb": "Gan Cao / Glycyrrhiza glabra",
+        "drugClass": "IECA / ARA-II",
+        "drugs": ["enalapril", "losartán", "valsartán"],
+        "mechanism": "Glicirricina antagoniza efecto antihipertensivo, potencia hipopotasemia",
+        "severity": "moderate",
+        "evidence": "pharmacokinetic",
+        "recommendation": "Evitar uso crónico concurrente. Monitorizar PA y K+."
+      },
+      {
+        "herb": "Ma Huang / Ephedra sinica",
+        "drugClass": "IMAO / ISRS / simpatomiméticos",
+        "drugs": ["fenelzina", "tranilcipromina", "fluoxetina", "sertralina", "pseudoefedrina"],
+        "mechanism": "Efedrina + pseudoefedrina natural: riesgo de crisis hipertensiva, síndrome serotoninérgico",
+        "severity": "high",
+        "evidence": "case-reports",
+        "recommendation": "CONTRAINDICADO ABSOLUTO con IMAO. Evitar con ISRS y descongestionantes."
+      },
+      {
+        "herb": "Ren Shen / Panax ginseng",
+        "drugClass": "hipoglucemiantes",
+        "drugs": ["insulina", "metformina", "glibenclamida", "sitagliptina"],
+        "mechanism": "Efecto hipoglucemiante aditivo por ginsenósidos",
+        "severity": "moderate",
+        "evidence": "clinical-trial",
+        "recommendation": "Monitorizar glucosa. Ajustar dosis de antidiabético bajo supervisión médica."
+      },
+      {
+        "herb": "Ren Shen / Panax ginseng",
+        "drugClass": "anticoagulantes",
+        "drugs": ["warfarina"],
+        "mechanism": "Efecto variable: algunos estudios muestran reducción de INR",
+        "severity": "moderate",
+        "evidence": "clinical-trial",
+        "recommendation": "Monitorizar INR. Evitar cambios bruscos de dosis de ginseng."
+      },
+      {
+        "herb": "Huang Qin / Scutellaria baicalensis",
+        "drugClass": "inmunosupresores",
+        "drugs": ["ciclosporina", "tacrolimus"],
+        "mechanism": "Baicalina inhibe CYP3A4 y P-gp, aumentando niveles de ciclosporina",
+        "severity": "high",
+        "evidence": "in-vitro",
+        "recommendation": "Monitorizar niveles de fármaco. Ajustar dosis de inmunosupresor."
+      },
+      {
+        "herb": "Bai Shao / Paeonia lactiflora",
+        "drugClass": "anticoagulantes",
+        "drugs": ["warfarina"],
+        "mechanism": "Potenciación leve del efecto anticoagulante",
+        "severity": "low",
+        "evidence": "in-vitro",
+        "recommendation": "Precaución. Monitorizar INR si dosis alta o uso prolongado."
+      },
+      {
+        "herb": "Yu Jin / Curcuma longa / Jiang Huang",
+        "drugClass": "anticoagulantes",
+        "drugs": ["warfarina", "aspirina", "clopidogrel"],
+        "mechanism": "Curcumina inhibe agregación plaquetaria y potencia anticoagulantes",
+        "severity": "moderate",
+        "evidence": "clinical-trial",
+        "recommendation": "Suspender 7 días antes de cirugía. Monitorizar si uso crónico."
+      },
+      {
+        "herb": "Suan Zao Ren / Zizyphus spinosa",
+        "drugClass": "CNS depressants",
+        "drugs": ["lorazepam", "diazepam", "zolpidem", "fenobarbital", "alcohol"],
+        "mechanism": "Sedación aditiva por flavonoides y saponinas",
+        "severity": "moderate",
+        "evidence": "pharmacodynamic",
+        "recommendation": "Evitar conducción. No combinar con sedantes sin supervisión."
+      },
+      {
+        "herb": "He Shou Wu / Polygonum multiflorum",
+        "drugClass": "hepatotóxicos",
+        "drugs": ["paracetamol", "isoniazida", "estatinas"],
+        "mechanism": "Hepatotoxicidad idiosincrásica documentada de He Shou Wu",
+        "severity": "high",
+        "evidence": "case-reports",
+        "recommendation": "Monitorizar transaminasas. Suspender si ALT/AST >2x normal. Contraindicado con hepatotóxicos."
+      },
+      {
+        "herb": "Xia Ku Cao / Prunella vulgaris",
+        "drugClass": "antihipertensivos",
+        "drugs": ["amlodipino", "enalapril", "atenolol"],
+        "mechanism": "Efecto hipotensor aditivo",
+        "severity": "low",
+        "evidence": "clinical-trial",
+        "recommendation": "Monitorizar PA. Beneficioso si controlado; riesgo de hipotensión ortostática."
+      }
+    ]
+  },
+  "deviceContraindications": {
+    "_description": "Contraindicaciones de acupuntura con dispositivos médicos implantados",
+    "pacemaker": {
+      "severity": "high",
+      "absolute": true,
+      "reason": "Riesgo de interferencia electromagnética con electroestimulación",
+      "allowed": ["Acupuntura manual sin electroestimulación", "Moxibustión", "Ventosas"],
+      "forbidden": ["Electroacupuntura (EA)", "TENS transcutáneo en trayecto de cables", "Laseracupuntura de alta potencia"],
+      "note": "Si el paciente insiste en EA, requiere evaluación cardiológica previa y consentimiento informado específico."
+    },
+    "cochlearImplant": {
+      "severity": "moderate",
+      "absolute": false,
+      "reason": "Agujas cerca del implante pueden causar interferencia mecánica",
+      "cautionZones": ["GB2, GB11, GB12, SJ17, SJ19, SI19"],
+      "recommendation": "Evitar punción directa sobre implante. Usar puntos distales."
+    },
+    "insulinPump": {
+      "severity": "low",
+      "absolute": false,
+      "reason": "Posible interferencia electromagnética leve",
+      "recommendation": "Desconectar bomba durante sesión si se usa electroacupuntura. Acupuntura manual es segura."
+    },
+    "deepBrainStimulator": {
+      "severity": "high",
+      "absolute": true,
+      "reason": "Riesgo de reprogramación del estimulador por campos electromagnéticos",
+      "forbidden": ["Electroacupuntura", "TENS", "Magnetoterapia"],
+      "allowed": ["Acupuntura manual"],
+      "note": "Requiere autorización del neurólogo que programa el DBS."
+    },
+    "spinalCordStimulator": {
+      "severity": "high",
+      "absolute": true,
+      "reason": "Similar a DBS: riesgo de interferencia electromagnética",
+      "forbidden": ["Electroacupuntura", "TENS"],
+      "allowed": ["Acupuntura manual"]
+    },
+    "intracranialMetal": {
+      "severity": "moderate",
+      "absolute": false,
+      "reason": "Clips aneurismales, placas craneales: evitar electroacupuntura craneal",
+      "cautionZones": ["Todos los puntos craneales si hay metal intracraneal"],
+      "recommendation": "Acupuntura manual permitida. Evitar EA en cabeza/cuello."
+    }
+  },
+  "anticoagulantPrecautions": {
+    "_description": "Precauciones de punción en pacientes con anticoagulantes orales o antiagregantes",
+    "warfarin": {
+      "inrThreshold": 3.0,
+      "severity": "high",
+      "recommendation": "NO puncionar si INR >3.0. Si INR 2.5-3.0: puntos superficiales, evitar cabeza/cara, articulaciones, zona lumbar profunda.",
+      "avoidTechniques": ["Punción profunda", "Agujas de 0.30mm+", "Fuerte manipulación (lifting/thrusting)", "Sangración intencional (wet cupping)"],
+      "allowed": ["Punción superficial 0.20mm", "Moxa indirecta", "Auriculoterapia con semillas"]
+    },
+    "directOralAnticoagulants": {
+      "drugs": ["apixaban", "rivaroxaban", "dabigatrán", "edoxaban"],
+      "severity": "moderate",
+      "recommendation": "Punción segura en INR/TPA normales. Evitar zonas de alto riesgo de hematoma (ojo, articulaciones, genital).",
+      "avoidTechniques": ["Sangración intencional", "Punción profunda en cara/cabeza"],
+      "note": "No requieren monitorización rutinaria de INR, pero consultar última dosis (evitar punción 3h post-dosis)."
+    },
+    "antiplatelets": {
+      "drugs": ["aspirina", "clopidogrel", "ticagrelor", "prasugrel"],
+      "severity": "moderate",
+      "recommendation": "Punción generalmente segura. Evitar zonas de riesgo de hematoma significativo. Suspender ticagrelor/prasugrel 5 días antes de cirugía mayor; acupuntura no requiere suspensión habitual.",
+      "avoidTechniques": ["Sangración intencional", "Punción de arterias mayores"]
+    },
+    "heparin": {
+      "severity": "high",
+      "recommendation": "Heparina IV: evitar punción durante infusión. Heparina subcutánea (enoxaparina): evitar zona abdominal de inyección.",
+      "avoidZones": ["Abdomen si enoxaparina reciente (<12h)", "Zona de infusión IV"]
+    }
+  },
+  "epilepsy": {
+    "_description": "Precauciones en pacientes con epilepsia o historial de convulsiones",
+    "absoluteContraindications": [
+      "Electroacupuntura con frecuencia >100Hz en cabeza/cara",
+      "Fotosensibilización con láser de alta intensidad",
+      "Inducción intencional de crisis (prohibido éticamente)"
+    ],
+    "relativePrecautions": [
+      { "item": "Electroacupuntura general", "note": "Frecuencias 2-10Hz pueden reducir umbral convulsivo en algunos estudios animales. Usar con precaución." },
+      { "item": "Puntos craneales DU20, GB20, EX-HN1", "note": "Punción profunda en estos puntos teóricamente puede afectar meninges. Usar técnica superficial." },
+      { "item": "Moxibustión directa en cabeza", "note": "Evitar por riesgo de quemadura + estrés térmico." }
+    ],
+    "recommendation": "Acupuntura manual estándar es segura en epilepsia controlada. Informar al neurólogo. Tener plan de emergencia en clínica."
+  },
+  "oncologySafety": {
+    "_description": "Reglas de seguridad para pacientes oncológicos (fase futura)",
+    "activeChemotherapy": {
+      "severity": "high",
+      "recommendation": "Evaluar recuento de plaquetas y neutrófilos antes de cada sesión. No puncionar si PLT <50,000 o neutrófilos <1000.",
+      "avoid": ["Electroacupuntura", "Sangración intencional", "Moxa directa sobre tumor"]
+    },
+    "radiationFields": {
+      "severity": "moderate",
+      "recommendation": "Evitar punción directa sobre campo irradiado activo (piel frágil, riesgo de necrosis).",
+      "note": "Puntos distales y contralaterales son seguros."
+    },
+    "lymphedema": {
+      "severity": "high",
+      "recommendation": "EVITAR agujas, ventosas, moxa en extremidad con linfedema post-mastectomía. Riesgo de infección (celulitis).",
+      "note": "Extremidad contralateral o puntos distales son alternativa segura."
+    }
+  },
+  "pediatricSafety": {
+    "_description": "Reglas especiales para menores de 18 años",
+    "ageLimits": {
+      "under12": {
+        "needleRetention": "Máximo 10-15 minutos",
+        "needleGauge": "0.16-0.20mm (muy finas)",
+        "forbiddenPoints": ["Puntos de cabeza fontanela anterior (hasta 18 meses)", "Punción profunda en fontanela posterior"],
+        "note": "Requiere consentimiento informado de ambos progenitores en muchas jurisdicciones."
+      },
+      "under7": {
+        "recommendation": "Preferir técnicas no invasivas: shonishin, masaje tuina, moxa indirecta, auriculoterapia con semillas.",
+        "needleUse": "Solo por profesional con formación pediátrica específica en MTC."
+      }
+    }
+  }
+}

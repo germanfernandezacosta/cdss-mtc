@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tu plan de bienestar</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 40px 20px; color: #374151; line-height: 1.6; max-width: 600px; margin: 0 auto; }
+    .header { text-align: center; margin-bottom: 30px; }
+    .header h1 { font-size: 26px; color: #111827; margin: 0; }
+    .header .date { font-size: 12px; color: #6b7280; margin-top: 8px; }
+    .content { font-size: 14px; text-align: justify; }
+    .content p { margin: 12px 0; }
+    .next-steps { background: #f9fafb; padding: 15px; border-radius: 8px; margin: 20px 0; }
+    .next-steps h3 { margin-top: 0; font-size: 16px; color: #111827; }
+    .next-steps ul { margin: 0; padding-left: 20px; }
+    .next-steps li { margin: 6px 0; }
+    .footer { margin-top: 30px; padding-top: 15px; border-top: 1px solid #e5e7eb; font-size: 11px; color: #6b7280; text-align: center; }
+    .status { font-weight: bold; font-size: 13px; margin-top: 10px; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>Tu plan de bienestar personalizado</h1>
+    <div class="date">Fecha: 28/5/2026</div>
+  </div>
+
+  <div class="content">
+    <p>Hola. Hemos revisado cuidadosamente lo que nos has compartido sobre tu salud. Entendemos que has venido con fatiga generalizada, digestión lenta, heces blandas, lengua con marcas dentales. Desde la perspectiva de la Medicina Tradicional China, tu cuerpo nos esta mostrando un patron conocido como "DEFICIENCIA DEL QI DEL BAZO (Pi Qi Xu)". Esto describe como tu energia vital (Qi) necesita apoyo, especialmente en la digestion y el descanso. No es un diagnostico medico occidental, sino una forma tradicional de entender tu equilibrio interno. </p><br><p>Basandonos en nuestro analisis, hemos preparado un plan personalizado que incluye acupuntura y, si es apropiado, apoyo herbal. Los puntos seleccionados trabajan para tonificar tu energia y mejorar tu descanso. La formula Ginseng (Ren Shen), Atractylodes (Bai Zhu), Codonopsis (Dang Shen) se utiliza tradicionalmente para nutrir el bazo y el corazon, promoviendo mejor sueno y digestion. </p><br><p>Proximos pasos:</p><p style="margin-left: 15px;">• Revision presencial con tu terapeuta registrado.</p><p style="margin-left: 15px;">• Seguimiento de tu respuesta al tratamiento en 1-2 semanas.</p><p style="margin-left: 15px;">• Si tienes cualquier duda, contacta con la clinica antes de tu cita.</p><br><p>Este documento es informativo y no sustituye el consejo medico de tu medico de cabecera o especialista. La acupuntura y la fitoterapia son terapias complementarias. Los resultados varian segun cada persona. Nunca modifiques tu medicacion prescrita sin consultar a tu medico.</p>
+  </div>
+
+  <div class="footer">
+    <p>Este documento ha sido generado por un sistema de soporte clinico y revisado por filtros de seguridad. Tu terapeuta registrado tiene la ultima palabra sobre cualquier tratamiento.</p>
+    <p class="status" style="color: #16a34a;">Estado de validacion de seguridad: VERDE</p>
+  </div>
+</body>
+</html>
