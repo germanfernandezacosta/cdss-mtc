@@ -1,0 +1,227 @@
+./.env.local
+./.eslintrc.json
+./.gitignore
+./.next/app-build-manifest.json
+./.next/build-manifest.json
+./.next/cache/config.json
+./.next/cache/webpack/client-development-fallback/0.pack.gz
+./.next/cache/webpack/client-development-fallback/index.pack.gz
+./.next/cache/webpack/client-development/0.pack.gz
+./.next/cache/webpack/client-development/1.pack.gz
+./.next/cache/webpack/client-development/2.pack.gz
+./.next/cache/webpack/client-development/3.pack.gz
+./.next/cache/webpack/client-development/4.pack.gz
+./.next/cache/webpack/client-development/index.pack.gz
+./.next/cache/webpack/client-development/index.pack.gz.old
+./.next/cache/webpack/server-development/0.pack.gz
+./.next/cache/webpack/server-development/1.pack.gz
+./.next/cache/webpack/server-development/2.pack.gz
+./.next/cache/webpack/server-development/3.pack.gz
+./.next/cache/webpack/server-development/4.pack.gz
+./.next/cache/webpack/server-development/5.pack.gz
+./.next/cache/webpack/server-development/6.pack.gz
+./.next/cache/webpack/server-development/7.pack.gz
+./.next/cache/webpack/server-development/8.pack.gz
+./.next/cache/webpack/server-development/9.pack.gz
+./.next/cache/webpack/server-development/index.pack.gz
+./.next/cache/webpack/server-development/index.pack.gz.old
+./.next/package.json
+./.next/react-loadable-manifest.json
+./.next/server/app-paths-manifest.json
+./.next/server/interception-route-rewrite-manifest.js
+./.next/server/middleware-build-manifest.js
+./.next/server/middleware-manifest.json
+./.next/server/middleware-react-loadable-manifest.js
+./.next/server/next-font-manifest.js
+./.next/server/next-font-manifest.json
+./.next/server/pages-manifest.json
+./.next/server/server-reference-manifest.js
+./.next/server/server-reference-manifest.json
+./.next/static/chunks/polyfills.js
+./.next/static/development/_buildManifest.js
+./.next/static/development/_ssgManifest.js
+./.next/trace
+./.next/types/package.json
+./.vscode/settings.json
+./README.md
+./arbol_software.txt
+./data/ehr/ehr-production.db
+./data/ehr/ehr-production.db-shm
+./data/ehr/ehr-production.db-wal
+./data/ehr/pdfs/03cd238b249437aa_2026-05-27T12-22-00-748Z_empathic.pdf
+./data/ehr/pdfs/03cd238b249437aa_2026-05-27T12-22-00-748Z_forensic.pdf
+./data/ehr/pdfs/0b7501b8ed46f21c_2026-05-29T21-06-45-121Z_empathic.pdf
+./data/ehr/pdfs/0b7501b8ed46f21c_2026-05-29T21-06-45-121Z_forensic.pdf
+./data/ehr/pdfs/0e21781d3033c67e_2026-06-01T06-22-10-543Z_empathic.pdf
+./data/ehr/pdfs/0e21781d3033c67e_2026-06-01T06-22-10-543Z_forensic.pdf
+./data/ehr/pdfs/0e21781d3033c67e_2026-06-01T14-49-20-916Z_empathic.pdf
+./data/ehr/pdfs/0e21781d3033c67e_2026-06-01T14-49-20-916Z_forensic.pdf
+./data/ehr/pdfs/141dc899afdb1cc8_2026-06-01T08-34-09-924Z_empathic.pdf
+./data/ehr/pdfs/141dc899afdb1cc8_2026-06-01T08-34-09-924Z_forensic.pdf
+./data/ehr/pdfs/1ab940df35578bc3_2026-05-27T12-24-09-240Z_empathic.pdf
+./data/ehr/pdfs/1ab940df35578bc3_2026-05-27T12-24-09-240Z_forensic.pdf
+./data/ehr/pdfs/1ab940df35578bc3_2026-05-27T12-30-31-097Z_empathic.pdf
+./data/ehr/pdfs/1ab940df35578bc3_2026-05-27T12-30-31-097Z_forensic.pdf
+./data/ehr/pdfs/1ab940df35578bc3_2026-05-27T12-40-44-200Z_empathic.pdf
+./data/ehr/pdfs/1ab940df35578bc3_2026-05-27T12-40-44-200Z_forensic.pdf
+./data/ehr/pdfs/1ab940df35578bc3_2026-05-27T12-53-44-076Z_empathic.pdf
+./data/ehr/pdfs/1ab940df35578bc3_2026-05-27T12-53-44-076Z_forensic.pdf
+./data/ehr/pdfs/1ab940df35578bc3_2026-05-27T13-01-20-716Z_empathic.pdf
+./data/ehr/pdfs/1ab940df35578bc3_2026-05-27T13-01-20-716Z_forensic.pdf
+./data/ehr/pdfs/23aac2a3c8683e23_2026-05-28T12-23-45-971Z_empathic.pdf
+./data/ehr/pdfs/23aac2a3c8683e23_2026-05-28T12-23-45-971Z_forensic.pdf
+./data/ehr/pdfs/2e70b23b6cef540b_2026-06-01T10-12-30-288Z_empathic.pdf
+./data/ehr/pdfs/2e70b23b6cef540b_2026-06-01T10-12-30-288Z_forensic.pdf
+./data/ehr/pdfs/5cbf6b1acebac7ac_2026-05-26T23-34-25-855Z_empathic.pdf
+./data/ehr/pdfs/5cbf6b1acebac7ac_2026-05-26T23-34-25-855Z_forensic.pdf
+./data/ehr/pdfs/5cbf6b1acebac7ac_2026-05-27T08-30-06-120Z_empathic.pdf
+./data/ehr/pdfs/5cbf6b1acebac7ac_2026-05-27T08-30-06-120Z_forensic.pdf
+./data/ehr/pdfs/5cbf6b1acebac7ac_2026-05-28T22-15-30-976Z_empathic.pdf
+./data/ehr/pdfs/5cbf6b1acebac7ac_2026-05-28T22-15-30-976Z_forensic.pdf
+./data/ehr/pdfs/7931ddcf992f2109_2026-05-28T11-59-43-752Z_empathic.pdf
+./data/ehr/pdfs/7931ddcf992f2109_2026-05-28T11-59-43-752Z_forensic.pdf
+./data/ehr/pdfs/b8d2289333b2e61d_2026-05-28T00-13-09-255Z_empathic.pdf
+./data/ehr/pdfs/b8d2289333b2e61d_2026-05-28T00-13-09-255Z_forensic.pdf
+./data/ehr/pdfs/b8d2289333b2e61d_2026-05-28T00-40-39-335Z_empathic.pdf
+./data/ehr/pdfs/b8d2289333b2e61d_2026-05-28T00-40-39-335Z_forensic.pdf
+./data/ehr/pdfs/bfc48a2304c5a90d_2026-06-01T20-41-58-906Z_empathic.pdf
+./data/ehr/pdfs/bfc48a2304c5a90d_2026-06-01T20-41-58-906Z_forensic.pdf
+./data/ehr/pdfs/bfc48a2304c5a90d_2026-06-02T15-19-14-919Z_empathic.pdf
+./data/ehr/pdfs/bfc48a2304c5a90d_2026-06-02T15-19-14-919Z_forensic.pdf
+./data/ehr/pdfs/bfc48a2304c5a90d_2026-06-02T16-18-49-060Z_empathic.pdf
+./data/ehr/pdfs/bfc48a2304c5a90d_2026-06-02T16-18-49-060Z_forensic.pdf
+./data/ehr/pdfs/eccabfcf782c9e40_2026-05-27T10-56-39-030Z_empathic.pdf
+./data/ehr/pdfs/eccabfcf782c9e40_2026-05-27T10-56-39-030Z_forensic.pdf
+./data/kant/ahpra-rules.json
+./data/kant/safety-rules.json
+./data/regulatory/ahpra/Ahpra---Guidelines---Guidelines-for-advertising-a-regulated-health-service---December-2020.PDF
+./data/regulatory/cmba/Ahpra---Code---shared-Code-of-Conduct.PDF
+./data/regulatory/cmba/Chinese-Medicine---Guidelines---Guidelines-on-infection-prevention-and-control-for-acupuncture-and-related-practices---September-2023.PDF
+./data/regulatory/cmba/Chinese-Medicine---Guidelines---Revised-guidelines-on-patient-health-records---July-2025.PDF
+./data/regulatory/cmba/Chinese-Medicine-Board---Guidelines---Guidelines-for-safe-Chinese-herbal-medicine-practice.PDF
+./data/sources/01-mtc-core/ASENTIMIENTO Y ALARMA (Shu-Mu), PUNTOS MAESTROS, TRATAMIENTO BASE, LOCALIZACIÓN Y PRECAUCIONES.pdf
+./data/sources/01-mtc-core/Auriculo Practica.pdf
+./data/sources/01-mtc-core/BALANCE ARTICULAR.pdf
+./data/sources/01-mtc-core/BIOMEDICIONES (LA REGULACIÓN ENERGÉTICA), PRÁCTICA CLÍNICA (CONCEPTOS BÁSICOS).pdf
+./data/sources/01-mtc-core/BIORRITMOS, COLATERALES, LAS CUATRO CAPAS, PUNTOS ESPECIALES Y TÉCNICA DE PLANOS.pdf
+./data/sources/01-mtc-core/Ba Fa.pdf
+./data/sources/01-mtc-core/Ba Gang.pdf
+./data/sources/01-mtc-core/Celulas del Sistema Nervioso.pdf
+./data/sources/01-mtc-core/Dolor y Cefalea.pdf
+./data/sources/01-mtc-core/El interrogatorio.pdf
+./data/sources/01-mtc-core/Energías - Humores - Sangre..pdf
+./data/sources/01-mtc-core/Etiopatogenia y Semiología.pdf
+./data/sources/01-mtc-core/FUNDAMENTOS DE BIOENERGÉTICA ACUPUNTURA.pdf
+./data/sources/01-mtc-core/Glosario.pdf
+./data/sources/01-mtc-core/Guia Practica Anatomofisiologica de la Medicina Tradicional China.pdf
+./data/sources/01-mtc-core/Historia Clinica.pdf
+./data/sources/01-mtc-core/LOS MERIDIANOS PRINCIPALES Completo.pdf
+./data/sources/01-mtc-core/LOS MERIDIANOS PRINCIPALES DE ACUPUNTURA Y LOS PUNTOS DE COMANDO.pdf
+./data/sources/01-mtc-core/La Lengua.pdf
+./data/sources/01-mtc-core/Localización de puntos - Concepto de distancia (Cun). Puntos prohibidos.pdf
+./data/sources/01-mtc-core/Los 4 elementos de diagnostico.pdf
+./data/sources/01-mtc-core/Los Luos Trasversales y Vasos reguladores (Qi Ji Mai).pdf
+./data/sources/01-mtc-core/Los microsistemas y las vías de enlace.pdf
+./data/sources/01-mtc-core/Los puntos de reunión (Hui). Los puntos de las barreras (La Gan). Los puntos ventanas del cielo (Tian Xue). Los puntos maestros (Bai Mai Jiao Hui Xue). Técnicas Complementarias.pdf
+./data/sources/01-mtc-core/Los síndromes por factores climatológicos.pdf
+./data/sources/01-mtc-core/MC CCSII 16- SISTEMA ENDOCRINO.pdf
+./data/sources/01-mtc-core/MC CCSII FIS MUS.pdf
+./data/sources/01-mtc-core/MC TEMA 13 SNC .pdf
+./data/sources/01-mtc-core/Meridianos 1.pdf
+./data/sources/01-mtc-core/Meridianos 2.pdf
+./data/sources/01-mtc-core/Meridianos 3.pdf
+./data/sources/01-mtc-core/Meridianos 4.pdf
+./data/sources/01-mtc-core/Movimiento Agua.pdf
+./data/sources/01-mtc-core/Movimiento Fuego.pdf
+./data/sources/01-mtc-core/Movimiento Madera.pdf
+./data/sources/01-mtc-core/Movimiento Metal.pdf
+./data/sources/01-mtc-core/Movimiento Tierra.pdf
+./data/sources/01-mtc-core/Oreja Auriculoterapia Internacional CEMeTC.pdf
+./data/sources/01-mtc-core/Prontuario Diagnóstico Terapéutico en MTC.pdf
+./data/sources/01-mtc-core/Pulsologia.pdf
+./data/sources/01-mtc-core/Puntos curiosos.pdf
+./data/sources/01-mtc-core/SISTEMA NERVIOSO AUTONOMO.pdf
+./data/sources/01-mtc-core/Semiología y Diagnóstico.pdf
+./data/sources/01-mtc-core/Sindromes generales.pdf
+./data/sources/01-mtc-core/TEMA 10 ANATOMIA MUSCULAR.pdf
+./data/sources/01-mtc-core/TEMA 15 CCSII ORG SEN.pdf
+./data/sources/01-mtc-core/TEMA 9 (2).pdf
+./data/sources/01-mtc-core/Tablas de Puntos Shu CEMeTC.pdf
+./data/sources/01-mtc-core/Tema 9Material CCSII .pdf
+./data/sources/01-mtc-core/Tratamiento.pdf
+./data/sources/01-mtc-core/VADEMECUM ESPAÑOL.pdf
+./data/sources/01-mtc-core/VID II CCSII SNC.pdf
+./data/sources/01-mtc-core/Vasos Reguladores Qi Ji Mai.pdf
+./data/sources/01-mtc-core/Zang Fu.pdf
+./data/vectors/fukuoka-master.db
+./docs/regulatory/TGA_CHECKLIST.md
+./drizzle.config.ts
+./mapa_proyecto.txt
+./next-env.d.ts
+./next.config.mjs
+./package-lock.json
+./package.json
+./postcss.config.mjs
+./public/fonts/Roboto-Italic.ttf
+./public/fonts/Roboto-Medium.ttf
+./public/fonts/Roboto-MediumItalic.ttf
+./public/fonts/Roboto-Regular.ttf
+./solo_carpetas.txt
+./src/app/api/ehr/[hash]/route.ts
+./src/app/api/ehr/route.ts
+./src/app/api/fukuoka/route.ts
+./src/app/api/treatment/route.ts
+./src/app/api/treatment/route.ts.bak
+./src/app/components/ErrorScreen.tsx
+./src/app/components/FoucaultDocs.tsx
+./src/app/components/FukuokaResult.tsx
+./src/app/components/KantResult.tsx
+./src/app/components/LanguageSelector.tsx
+./src/app/components/PremiumForm.tsx
+./src/app/components/PremiumHeader.tsx
+./src/app/favicon.ico
+./src/app/fonts/GeistMonoVF.woff
+./src/app/fonts/GeistVF.woff
+./src/app/globals.css
+./src/app/globals.css.d.ts
+./src/app/layout.tsx
+./src/app/page.tsx
+./src/lib/api.ts
+./src/lib/ehr/db.ts
+./src/lib/ehr/index.ts
+./src/lib/ehr/schema.ts
+./src/lib/ehr/store.ts
+./src/lib/foucault/ahpra-filter.ts
+./src/lib/foucault/empathic-builder.ts
+./src/lib/foucault/engine.ts
+./src/lib/foucault/forensic-builder.ts
+./src/lib/foucault/index.ts
+./src/lib/foucault/persistence.ts
+./src/lib/foucault/types.ts
+./src/lib/fukuoka-h/engine.ts
+./src/lib/kant/engine.ts
+./src/lib/kant/types.ts
+./src/lib/privacy/deidentify.ts
+./src/lib/rag/chunker.ts
+./src/lib/rag/contextBuilder.ts
+./src/lib/rag/contextBuilder.ts.bak
+./src/lib/rag/embedder.ts
+./src/lib/rag/types.ts
+./src/lib/rag/types.ts.bak
+./src/lib/rag/vectorStore.ts
+./src/lib/rag/vectorStore.ts.bak
+./src/scripts/ingest-regulatory.ts
+./src/scripts/ingest.ts
+./src/scripts/purge-test-data.ts
+./src/scripts/test-foucault-v22.ts
+./src/scripts/test-fukuoka-forense-direct.ts
+./src/scripts/test-fukuoka-forense.ts
+./src/scripts/test-kant-v21.ts
+./src/scripts/test-kant.ts
+./src/scripts/test-rag-citations.ts
+./src/scripts/test-search.ts
+./src/scripts/verify-ehr.ts
+./src/scripts/verify-rag.ts
+./tailwind.config.ts
+./tsconfig.json
+./tsconfig.tsbuildinfo

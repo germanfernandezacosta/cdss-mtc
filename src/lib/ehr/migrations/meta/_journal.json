@@ -1,0 +1,34 @@
+{
+  "version": "7",
+  "dialect": "sqlite",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "6",
+      "when": 1780511830376,
+      "tag": "0000_puzzling_whizzer",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1780911366115,
+      "tag": "0001_confused_turbo",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1781040302075,
+      "tag": "0002_demonic_wild_child",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1781388143876,
+      "tag": "0003_adorable_ben_parker",
+      "breakpoints": true
+    }
+  ]
+}

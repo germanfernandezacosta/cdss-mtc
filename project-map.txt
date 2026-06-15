@@ -1,0 +1,269 @@
+.
+├── data
+│   ├── ehr
+│   │   ├── pdfs
+│   │   │   ├── 03cd238b249437aa_2026-05-27T12-22-00-748Z_empathic.pdf
+│   │   │   ├── 03cd238b249437aa_2026-05-27T12-22-00-748Z_forensic.pdf
+│   │   │   ├── 0b7501b8ed46f21c_2026-05-29T21-06-45-121Z_empathic.pdf
+│   │   │   ├── 0b7501b8ed46f21c_2026-05-29T21-06-45-121Z_forensic.pdf
+│   │   │   ├── 0e21781d3033c67e_2026-06-01T06-22-10-543Z_empathic.pdf
+│   │   │   ├── 0e21781d3033c67e_2026-06-01T06-22-10-543Z_forensic.pdf
+│   │   │   ├── 0e21781d3033c67e_2026-06-01T14-49-20-916Z_empathic.pdf
+│   │   │   ├── 0e21781d3033c67e_2026-06-01T14-49-20-916Z_forensic.pdf
+│   │   │   ├── 141dc899afdb1cc8_2026-06-01T08-34-09-924Z_empathic.pdf
+│   │   │   ├── 141dc899afdb1cc8_2026-06-01T08-34-09-924Z_forensic.pdf
+│   │   │   ├── 1ab940df35578bc3_2026-05-27T12-24-09-240Z_empathic.pdf
+│   │   │   ├── 1ab940df35578bc3_2026-05-27T12-24-09-240Z_forensic.pdf
+│   │   │   ├── 1ab940df35578bc3_2026-05-27T12-30-31-097Z_empathic.pdf
+│   │   │   ├── 1ab940df35578bc3_2026-05-27T12-30-31-097Z_forensic.pdf
+│   │   │   ├── 1ab940df35578bc3_2026-05-27T12-40-44-200Z_empathic.pdf
+│   │   │   ├── 1ab940df35578bc3_2026-05-27T12-40-44-200Z_forensic.pdf
+│   │   │   ├── 1ab940df35578bc3_2026-05-27T12-53-44-076Z_empathic.pdf
+│   │   │   ├── 1ab940df35578bc3_2026-05-27T12-53-44-076Z_forensic.pdf
+│   │   │   ├── 1ab940df35578bc3_2026-05-27T13-01-20-716Z_empathic.pdf
+│   │   │   ├── 1ab940df35578bc3_2026-05-27T13-01-20-716Z_forensic.pdf
+│   │   │   ├── 23aac2a3c8683e23_2026-05-28T12-23-45-971Z_empathic.pdf
+│   │   │   ├── 23aac2a3c8683e23_2026-05-28T12-23-45-971Z_forensic.pdf
+│   │   │   ├── 2e70b23b6cef540b_2026-06-01T10-12-30-288Z_empathic.pdf
+│   │   │   ├── 2e70b23b6cef540b_2026-06-01T10-12-30-288Z_forensic.pdf
+│   │   │   ├── 5cbf6b1acebac7ac_2026-05-26T23-34-25-855Z_empathic.pdf
+│   │   │   ├── 5cbf6b1acebac7ac_2026-05-26T23-34-25-855Z_forensic.pdf
+│   │   │   ├── 5cbf6b1acebac7ac_2026-05-27T08-30-06-120Z_empathic.pdf
+│   │   │   ├── 5cbf6b1acebac7ac_2026-05-27T08-30-06-120Z_forensic.pdf
+│   │   │   ├── 5cbf6b1acebac7ac_2026-05-28T22-15-30-976Z_empathic.pdf
+│   │   │   ├── 5cbf6b1acebac7ac_2026-05-28T22-15-30-976Z_forensic.pdf
+│   │   │   ├── 5cbf6b1acebac7ac_2026-06-03T18-45-40-175Z_empathic.pdf
+│   │   │   ├── 5cbf6b1acebac7ac_2026-06-03T18-45-40-175Z_forensic.pdf
+│   │   │   ├── 5cbf6b1acebac7ac_2026-06-03T18-55-38-412Z_empathic.pdf
+│   │   │   ├── 5cbf6b1acebac7ac_2026-06-03T18-55-38-412Z_forensic.pdf
+│   │   │   ├── 5cbf6b1acebac7ac_2026-06-03T19-11-16-964Z_empathic.pdf
+│   │   │   ├── 5cbf6b1acebac7ac_2026-06-03T19-11-16-964Z_forensic.pdf
+│   │   │   ├── 5cbf6b1acebac7ac_2026-06-03T19-33-43-625Z_empathic.pdf
+│   │   │   ├── 5cbf6b1acebac7ac_2026-06-03T19-33-43-625Z_forensic.pdf
+│   │   │   ├── 7931ddcf992f2109_2026-05-28T11-59-43-752Z_empathic.pdf
+│   │   │   ├── 7931ddcf992f2109_2026-05-28T11-59-43-752Z_forensic.pdf
+│   │   │   ├── 9f250777e81f9ef8_2026-06-06T07-17-57-408Z_empathic.pdf
+│   │   │   ├── 9f250777e81f9ef8_2026-06-06T07-17-57-408Z_forensic.pdf
+│   │   │   ├── b856f92c524f7528_2026-06-08T18-56-59-380Z_empathic.pdf
+│   │   │   ├── b856f92c524f7528_2026-06-08T18-56-59-380Z_forensic.pdf
+│   │   │   ├── b8d2289333b2e61d_2026-05-28T00-13-09-255Z_empathic.pdf
+│   │   │   ├── b8d2289333b2e61d_2026-05-28T00-13-09-255Z_forensic.pdf
+│   │   │   ├── b8d2289333b2e61d_2026-05-28T00-40-39-335Z_empathic.pdf
+│   │   │   ├── b8d2289333b2e61d_2026-05-28T00-40-39-335Z_forensic.pdf
+│   │   │   ├── bfc48a2304c5a90d_2026-06-01T20-41-58-906Z_empathic.pdf
+│   │   │   ├── bfc48a2304c5a90d_2026-06-01T20-41-58-906Z_forensic.pdf
+│   │   │   ├── bfc48a2304c5a90d_2026-06-02T15-19-14-919Z_empathic.pdf
+│   │   │   ├── bfc48a2304c5a90d_2026-06-02T15-19-14-919Z_forensic.pdf
+│   │   │   ├── bfc48a2304c5a90d_2026-06-02T16-18-49-060Z_empathic.pdf
+│   │   │   ├── bfc48a2304c5a90d_2026-06-02T16-18-49-060Z_forensic.pdf
+│   │   │   ├── bfc48a2304c5a90d_2026-06-03T18-18-08-421Z_empathic.pdf
+│   │   │   ├── bfc48a2304c5a90d_2026-06-03T18-18-08-421Z_forensic.pdf
+│   │   │   ├── bfc48a2304c5a90d_2026-06-03T18-20-26-819Z_empathic.pdf
+│   │   │   ├── bfc48a2304c5a90d_2026-06-03T18-20-26-819Z_forensic.pdf
+│   │   │   ├── bfc48a2304c5a90d_2026-06-03T18-31-41-479Z_empathic.pdf
+│   │   │   ├── bfc48a2304c5a90d_2026-06-03T18-31-41-479Z_forensic.pdf
+│   │   │   ├── bfc48a2304c5a90d_2026-06-03T18-39-12-488Z_empathic.pdf
+│   │   │   ├── bfc48a2304c5a90d_2026-06-03T18-39-12-488Z_forensic.pdf
+│   │   │   ├── bfc48a2304c5a90d_2026-06-03T19-00-47-129Z_empathic.pdf
+│   │   │   ├── bfc48a2304c5a90d_2026-06-03T19-00-47-129Z_forensic.pdf
+│   │   │   ├── bfc48a2304c5a90d_2026-06-03T19-26-21-725Z_empathic.pdf
+│   │   │   ├── bfc48a2304c5a90d_2026-06-03T19-26-21-725Z_forensic.pdf
+│   │   │   ├── bfc48a2304c5a90d_2026-06-03T20-07-41-425Z_empathic.pdf
+│   │   │   ├── bfc48a2304c5a90d_2026-06-03T20-07-41-425Z_forensic.pdf
+│   │   │   ├── bfc48a2304c5a90d_2026-06-04T08-17-02-409Z_empathic.pdf
+│   │   │   ├── bfc48a2304c5a90d_2026-06-04T08-17-02-409Z_forensic.pdf
+│   │   │   ├── bfc48a2304c5a90d_2026-06-04T08-49-01-400Z_empathic.pdf
+│   │   │   ├── bfc48a2304c5a90d_2026-06-04T08-49-01-400Z_forensic.pdf
+│   │   │   ├── bfc48a2304c5a90d_2026-06-04T08-59-18-968Z_empathic.pdf
+│   │   │   ├── bfc48a2304c5a90d_2026-06-04T08-59-18-968Z_forensic.pdf
+│   │   │   ├── bfc48a2304c5a90d_2026-06-06T06-50-35-737Z_empathic.pdf
+│   │   │   ├── bfc48a2304c5a90d_2026-06-06T06-50-35-737Z_forensic.pdf
+│   │   │   ├── bfc48a2304c5a90d_2026-06-08T15-44-39-809Z_empathic.pdf
+│   │   │   ├── bfc48a2304c5a90d_2026-06-08T15-44-39-809Z_forensic.pdf
+│   │   │   ├── eccabfcf782c9e40_2026-05-27T10-56-39-030Z_empathic.pdf
+│   │   │   └── eccabfcf782c9e40_2026-05-27T10-56-39-030Z_forensic.pdf
+│   │   ├── ehr-production.db
+│   │   ├── ehr-production.db-shm
+│   │   └── ehr-production.db-wal
+│   ├── kant
+│   │   ├── ahpra-rules.json
+│   │   └── safety-rules.json
+│   ├── regulatory
+│   │   ├── ahpra
+│   │   │   └── Ahpra---Guidelines---Guidelines-for-advertising-a-regulated-health-service---December-2020.PDF
+│   │   └── cmba
+│   │       ├── Ahpra---Code---shared-Code-of-Conduct.PDF
+│   │       ├── Chinese-Medicine---Guidelines---Guidelines-on-infection-prevention-and-control-for-acupuncture-and-related-practices---September-2023.PDF
+│   │       ├── Chinese-Medicine---Guidelines---Revised-guidelines-on-patient-health-records---July-2025.PDF
+│   │       └── Chinese-Medicine-Board---Guidelines---Guidelines-for-safe-Chinese-herbal-medicine-practice.PDF
+│   ├── sources
+│   │   ├── 01-mtc-core
+│   │   │   ├── ASENTIMIENTO Y ALARMA (Shu-Mu), PUNTOS MAESTROS, TRATAMIENTO BASE, LOCALIZACIÓN Y PRECAUCIONES.pdf
+│   │   │   ├── Auriculo Practica.pdf
+│   │   │   ├── BALANCE ARTICULAR.pdf
+│   │   │   ├── BIOMEDICIONES (LA REGULACIÓN ENERGÉTICA), PRÁCTICA CLÍNICA (CONCEPTOS BÁSICOS).pdf
+│   │   │   ├── BIORRITMOS, COLATERALES, LAS CUATRO CAPAS, PUNTOS ESPECIALES Y TÉCNICA DE PLANOS.pdf
+│   │   │   ├── Ba Fa.pdf
+│   │   │   ├── Ba Gang.pdf
+│   │   │   ├── Celulas del Sistema Nervioso.pdf
+│   │   │   ├── Dolor y Cefalea.pdf
+│   │   │   ├── El interrogatorio.pdf
+│   │   │   ├── Energías - Humores - Sangre..pdf
+│   │   │   ├── Etiopatogenia y Semiología.pdf
+│   │   │   ├── FUNDAMENTOS DE BIOENERGÉTICA ACUPUNTURA.pdf
+│   │   │   ├── Glosario.pdf
+│   │   │   ├── Guia Practica Anatomofisiologica de la Medicina Tradicional China.pdf
+│   │   │   ├── Historia Clinica.pdf
+│   │   │   ├── LOS MERIDIANOS PRINCIPALES Completo.pdf
+│   │   │   ├── LOS MERIDIANOS PRINCIPALES DE ACUPUNTURA Y LOS PUNTOS DE COMANDO.pdf
+│   │   │   ├── La Lengua.pdf
+│   │   │   ├── Localización de puntos - Concepto de distancia (Cun). Puntos prohibidos.pdf
+│   │   │   ├── Los 4 elementos de diagnostico.pdf
+│   │   │   ├── Los Luos Trasversales y Vasos reguladores (Qi Ji Mai).pdf
+│   │   │   ├── Los microsistemas y las vías de enlace.pdf
+│   │   │   ├── Los puntos de reunión (Hui). Los puntos de las barreras (La Gan). Los puntos ventanas del cielo (Tian Xue). Los puntos maestros (Bai Mai Jiao Hui Xue). Técnicas Complementarias.pdf
+│   │   │   ├── Los síndromes por factores climatológicos.pdf
+│   │   │   ├── MC CCSII 16- SISTEMA ENDOCRINO.pdf
+│   │   │   ├── MC CCSII FIS MUS.pdf
+│   │   │   ├── MC TEMA 13 SNC .pdf
+│   │   │   ├── Meridianos 1.pdf
+│   │   │   ├── Meridianos 2.pdf
+│   │   │   ├── Meridianos 3.pdf
+│   │   │   ├── Meridianos 4.pdf
+│   │   │   ├── Movimiento Agua.pdf
+│   │   │   ├── Movimiento Fuego.pdf
+│   │   │   ├── Movimiento Madera.pdf
+│   │   │   ├── Movimiento Metal.pdf
+│   │   │   ├── Movimiento Tierra.pdf
+│   │   │   ├── Oreja Auriculoterapia Internacional CEMeTC.pdf
+│   │   │   ├── Prontuario Diagnóstico Terapéutico en MTC.pdf
+│   │   │   ├── Pulsologia.pdf
+│   │   │   ├── Puntos curiosos.pdf
+│   │   │   ├── SISTEMA NERVIOSO AUTONOMO.pdf
+│   │   │   ├── Semiología y Diagnóstico.pdf
+│   │   │   ├── Sindromes generales.pdf
+│   │   │   ├── TEMA 10 ANATOMIA MUSCULAR.pdf
+│   │   │   ├── TEMA 15 CCSII ORG SEN.pdf
+│   │   │   ├── TEMA 9 (2).pdf
+│   │   │   ├── Tablas de Puntos Shu CEMeTC.pdf
+│   │   │   ├── Tema 9Material CCSII .pdf
+│   │   │   ├── Tratamiento.pdf
+│   │   │   ├── VADEMECUM ESPAÑOL.pdf
+│   │   │   ├── VID II CCSII SNC.pdf
+│   │   │   ├── Vasos Reguladores Qi Ji Mai.pdf
+│   │   │   └── Zang Fu.pdf
+│   │   ├── 02-farmacopea
+│   │   ├── 03-oncologia
+│   │   ├── 04-fitoterapia
+│   │   └── 05-safety-guides
+│   └── vectors
+│       └── fukuoka-master.db
+├── docs
+│   └── regulatory
+│       └── TGA_CHECKLIST.md
+├── public
+│   ├── fonts
+│   │   ├── NotoSans-Bold.ttf
+│   │   ├── NotoSans-BoldItalic.ttf
+│   │   ├── NotoSans-Italic.ttf
+│   │   ├── NotoSans-Regular.ttf
+│   │   ├── NotoSansSC-Bold.ttf
+│   │   ├── NotoSansSC-Regular.ttf
+│   │   ├── NotoSerif-Bold.ttf
+│   │   ├── NotoSerif-Regular.ttf
+│   │   ├── Roboto-Italic.ttf
+│   │   ├── Roboto-Medium.ttf
+│   │   ├── Roboto-MediumItalic.ttf
+│   │   └── Roboto-Regular.ttf
+│   └── vfs_fonts.js
+├── src
+│   ├── app
+│   │   ├── api
+│   │   │   ├── ehr
+│   │   │   ├── fukuoka
+│   │   │   ├── pdf
+│   │   │   └── treatment
+│   │   ├── components
+│   │   │   ├── ErrorScreen.tsx
+│   │   │   ├── FoucaultDocs.tsx
+│   │   │   ├── FukuokaResult.tsx
+│   │   │   ├── KantResult.tsx
+│   │   │   ├── LanguageSelector.tsx
+│   │   │   ├── PremiumForm.tsx
+│   │   │   └── PremiumHeader.tsx
+│   │   ├── fonts
+│   │   │   ├── GeistMonoVF.woff
+│   │   │   └── GeistVF.woff
+│   │   ├── favicon.ico
+│   │   ├── globals.css
+│   │   ├── globals.css.d.ts
+│   │   ├── layout.tsx
+│   │   └── page.tsx
+│   ├── lib
+│   │   ├── ehr
+│   │   │   ├── migrations
+│   │   │   ├── db.ts
+│   │   │   ├── index.ts
+│   │   │   ├── schema.ts
+│   │   │   └── store.ts
+│   │   ├── foucault
+│   │   │   ├── ahpra-filter.ts
+│   │   │   ├── empathic-builder.ts
+│   │   │   ├── engine.ts
+│   │   │   ├── forensic-builder.ts
+│   │   │   ├── index.ts
+│   │   │   ├── persistence.ts
+│   │   │   └── types.ts
+│   │   ├── fukuoka-h
+│   │   │   └── engine.ts
+│   │   ├── kant
+│   │   │   ├── engine.ts
+│   │   │   └── types.ts
+│   │   ├── pdf-generators
+│   │   │   ├── empathic-pdf.ts
+│   │   │   ├── forensic-html-builder.ts
+│   │   │   ├── forensic-html-to-pdf.ts
+│   │   │   └── types.ts
+│   │   ├── privacy
+│   │   │   └── deidentify.ts
+│   │   ├── rag
+│   │   │   ├── chunker.ts
+│   │   │   ├── contextBuilder.ts
+│   │   │   ├── contextBuilder.ts.bak
+│   │   │   ├── embedder.ts
+│   │   │   ├── types.ts
+│   │   │   ├── types.ts.bak
+│   │   │   ├── vectorStore.ts
+│   │   │   └── vectorStore.ts.bak
+│   │   ├── api.ts
+│   │   └── pdfmake-config.ts
+│   └── scripts
+│       ├── ingest-regulatory.ts
+│       ├── ingest.ts
+│       ├── purge-test-data.ts
+│       ├── test-foucault-v22.ts
+│       ├── test-fukuoka-forense-direct.ts
+│       ├── test-fukuoka-forense.ts
+│       ├── test-kant-v21.ts
+│       ├── test-kant.ts
+│       ├── test-rag-citations.ts
+│       ├── test-search.ts
+│       ├── verify-ehr.ts
+│       └── verify-rag.ts
+├── README.md
+├── arbol_software.txt
+├── build-fonts.js
+├── drizzle.config.ts
+├── mapa_proyecto.txt
+├── next-env.d.ts
+├── next.config.mjs
+├── package-lock.json
+├── package.json
+├── postcss.config.mjs
+├── project-map.txt
+├── solo_carpetas.txt
+├── tailwind.config.ts
+├── tsconfig.json
+└── tsconfig.tsbuildinfo
+
+38 directories, 229 files

@@ -1,105 +1,204 @@
+// src/lib/foucault/forensic-builder.ts
+// NUEVA FUNCIÓN: devuelve objeto plano para pdfmake
+import { ForensicPdfData } from '../pdf-generators/types';
 import { FoucaultInput } from './types';
 
-export function buildForensicHtml(input: FoucaultInput): string {
+export function buildForensicData(input: FoucaultInput): ForensicPdfData {
   const { patient, clinicalInput, fukuokaResult, kantResult, generatedAt } = input;
-  const kantColor = kantResult.verdict === 'ROJO' ? '#dc2626' : kantResult.verdict === 'AMARILLO' ? '#d97706' : '#16a34a';
 
-  const violationsHtml = kantResult.violations.length
-    ? kantResult.violations.map((v: any) => 
-        `<div style="margin: 4px 0; padding: 8px; background: ${v.severity === 'ROJO' ? '#fee2e2' : '#fef3c7'}; border-radius: 4px;">
-          <strong>[${v.severity}] ${v.ruleId}:</strong> ${v.message}
-        </div>`
-      ).join('')
-    : '<p style="color: #16a34a;">Ninguna violación detectada.</p>';
+  return {
+    patient: {
+      hash: patient.id || 'anonymous',
+      age: patient.age,
+      gender: patient.sex,
+    },
+    session: {
+      id: parseInt(fukuokaResult.request_id) || 0,
+      date: new Date(generatedAt).toISOString(),
+      createdAt: new Date().toISOString(),
+    },
+    practitioner: {
+      name: undefined, // Se rellena desde la BD o config
+      registration: undefined,
+      qualification: undefined,
+      clinic: undefined,
+      address: undefined,
+      phone: undefined,
+    },
+    clinical: {
+      symptoms: clinicalInput.symptoms,
+      diagnosis: undefined,
+      syndrome: fukuokaResult.data.syndrome_analysis.map((s: { syndrome_name: string }) => s.syndrome_name).join(', '),
+      rationale: fukuokaResult.data.treatment_proposal.rationale,
+      
+      // Observación
+      complexion: undefined,
+      spirit: undefined,
+      bodyShape: undefined,
+      posture: undefined,
+      skinCondition: undefined,
+      hairCondition: undefined,
+      eyes: undefined,
+      nails: undefined,
 
-  return `<!DOCTYPE html>
-<html lang="es">
-<head>
-  <meta charset="UTF-8">
-  <title>Informe Forense CDSS-MTC</title>
-  <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 40px; color: #1f2937; line-height: 1.5; }
-    .header { border-bottom: 3px solid #111827; padding-bottom: 10px; margin-bottom: 20px; }
-    .header h1 { margin: 0; font-size: 22px; }
-    .meta { font-size: 10px; color: #6b7280; margin-top: 5px; }
-    .section { margin: 20px 0; }
-    .section h2 { font-size: 14px; color: #374151; border-bottom: 1px solid #e5e7eb; padding-bottom: 5px; margin-bottom: 10px; }
-    table { width: 100%; border-collapse: collapse; font-size: 11px; }
-    td { padding: 6px 10px; border-bottom: 1px solid #f3f4f6; }
-    td:first-child { width: 30%; font-weight: 600; color: #4b5563; background: #f9fafb; }
-    .verdict { font-size: 24px; font-weight: bold; color: ${kantColor}; }
-    .footer { margin-top: 40px; padding-top: 15px; border-top: 2px solid #e5e7eb; font-size: 9px; color: #6b7280; text-align: center; font-style: italic; }
-    .chain { font-size: 9px; color: #9ca3af; background: #f9fafb; padding: 10px; border-radius: 4px; }
-    .chain li { margin: 3px 0; }
-  </style>
-</head>
-<body>
-  <div class="header">
-    <h1>INFORME TÉCNICO FORENSE — CDSS MTC</h1>
-    <div class="meta">Generado: ${new Date(generatedAt).toLocaleString('es-ES')} | Request ID: ${fukuokaResult.request_id} | Hash: ${kantResult.originalProposalHash}</div>
-  </div>
+      // Lengua
+      tongueBodyColor: undefined,
+      tongueBodyShape: undefined,
+      tongueCoatingColor: undefined,
+      tongueCoatingThickness: undefined,
+      tongueCoatingDistribution: undefined,
+      tongueMoisture: undefined,
+      tongueSublingualVeins: undefined,
+      tongueNotes: clinicalInput.tongue,
 
-  <div class="section">
-    <h2>1. DATOS DEL PACIENTE</h2>
-    <table>
-      <tr><td>ID:</td><td>${patient.id || 'NO REGISTRADO'}</td></tr>
-      <tr><td>Edad:</td><td>${patient.age ? `${patient.age} años` : 'N/D'}</td></tr>
-      <tr><td>Sexo:</td><td>${patient.sex || 'N/D'}</td></tr>
-      <tr><td>Embarazo:</td><td>${patient.pregnancy?.active ? `SÍ — T${patient.pregnancy.trimester}, ${patient.pregnancy.weeks} semanas` : 'No declarado'}</td></tr>
-    </table>
-  </div>
+      // Pulso
+      pulseLeftCun: undefined,
+      pulseLeftGuan: undefined,
+      pulseLeftChi: undefined,
+      pulseRightCun: undefined,
+      pulseRightGuan: undefined,
+      pulseRightChi: undefined,
+      pulseDepth: undefined,
+      pulseRate: undefined,
+      pulseRhythm: undefined,
+      pulseQuality: undefined,
+      pulseOverall: clinicalInput.pulse,
+      pulseNotes: undefined,
 
-  <div class="section">
-    <h2>2. DATOS CLÍNICOS DE ENTRADA</h2>
-    <table>
-      <tr><td>Síntomas:</td><td>${clinicalInput.symptoms}</td></tr>
-      <tr><td>Pulso:</td><td>${clinicalInput.pulse}</td></tr>
-      <tr><td>Lengua:</td><td>${clinicalInput.tongue}</td></tr>
-      <tr><td>Ryodoraku:</td><td>${clinicalInput.ryodoraku || 'No proporcionado'}</td></tr>
-    </table>
-  </div>
+      // Ryodoraku
+      ryodorakuLung: undefined,
+      ryodorakuPericardium: undefined,
+      ryodorakuHeart: undefined,
+      ryodorakuSmallIntestine: undefined,
+      ryodorakuTripleWarmer: undefined,
+      ryodorakuLargeIntestine: undefined,
+      ryodorakuSpleen: undefined,
+      ryodorakuLiver: undefined,
+      ryodorakuKidney: undefined,
+      ryodorakuBladder: undefined,
+      ryodorakuStomach: undefined,
+      ryodorakuGallbladder: undefined,
+      ryodorakuNotes: clinicalInput.ryodoraku ? (typeof clinicalInput.ryodoraku === 'string' ? clinicalInput.ryodoraku : Object.entries(clinicalInput.ryodoraku).map(([k, v]) => `${k}: ${v}`).join('; ')) : undefined,
 
-  <div class="section">
-    <h2>3. ANÁLISIS FUKUOKA-H</h2>
-    ${fukuokaResult.data.syndrome_analysis.map((s: any, i: number) => `
-      <p><strong>Síndrome ${i + 1}:</strong> ${s.syndrome_name} (confianza: ${(s.confidence * 100).toFixed(0)}%)</p>
-      <p style="font-style: italic; color: #6b7280;">Evidencia: ${s.supporting_evidence.join(', ')}</p>
-    `).join('')}
-  </div>
+      // Abdomen
+      abdomenOverall: undefined,
+      abdomenSho: undefined,
+      abdomenTenderness: undefined,
+      abdomenTension: undefined,
+      abdomenTemperature: undefined,
+      abdomenWaterSound: undefined,
+      abdomenNotes: undefined,
 
-  <div class="section">
-    <h2>4. PROPUESTA DE TRATAMIENTO</h2>
-    <table>
-      <tr><td>Puntos de acupuntura:</td><td>${fukuokaResult.data.treatment_proposal.acupuncture_points.join(', ')}</td></tr>
-      <tr><td>Fórmula herbal:</td><td>${fukuokaResult.data.treatment_proposal.herbal_formula || 'Ninguna'}</td></tr>
-      <tr><td>Razonamiento:</td><td>${fukuokaResult.data.treatment_proposal.rationale}</td></tr>
-    </table>
-  </div>
+      // Diagnóstico
+      bianZheng: undefined,
+      zangFuPattern: undefined,
+      baGang: undefined,
+      qiBloodFluid: undefined,
+      channelPattern: undefined,
+      diseaseMechanism: undefined,
+      westernDiagnosis: undefined,
 
-  <div class="section">
-    <h2>5. EVALUACIÓN KANT (SEGURIDAD)</h2>
-    <div class="verdict">${kantResult.verdict}</div>
-    <p>Reglas revisadas: ${kantResult.totalRulesChecked}</p>
-    <p>Violaciones:</p>
-    ${violationsHtml}
-    <p style="font-size: 10px; color: #6b7280;">Evaluado en: ${new Date(kantResult.evaluatedAt).toLocaleString('es-ES')} | Versión motor: ${kantResult.engineVersion}</p>
-  </div>
+      // Tratamiento
+      treatmentPrinciple: undefined,
+      treatmentMethod: undefined,
 
-  <div class="section">
-    <h2>6. TRAZA DE CUSTODIA</h2>
-    <ul class="chain">
-      <li>Input clínico recibido: ${new Date(generatedAt).toISOString()}</li>
-      <li>Inferencia FUKUOKA-H completada: Request ${fukuokaResult.request_id}</li>
-      <li>Validación KANT ejecutada: ${kantResult.totalRulesChecked} reglas</li>
-      <li>Documento forense generado: ${new Date().toISOString()}</li>
-      <li>Hash de propuesta original: ${kantResult.originalProposalHash}</li>
-    </ul>
-  </div>
+      // Acupuntura
+      pointsExecution: JSON.stringify(
+        fukuokaResult.data.treatment_proposal.acupuncture_points.map((p: string) => ({
+          point: p,
+          location: '',
+          technique: '',
+          depth: '',
+          manipulation: '',
+          duration: '',
+        }))
+      ),
+      acupunctureNeedleType: undefined,
+      acupunctureNeedleCount: fukuokaResult.data.treatment_proposal.acupuncture_points.length,
+      acupunctureDuration: undefined,
+      acupunctureFrequency: undefined,
+      acupunctureTotalSessions: undefined,
+      acupunctureSequence: undefined,
+      acupunctureDeqi: undefined,
+      acupunctureNotes: undefined,
 
-  <div class="footer">
-    <p>CONFIDENCIAL — Documento interno clínico. No para distribución al paciente. Protegido por secreto profesional.</p>
-    <p>Este informe fue generado por un sistema de soporte a decisiones clínicas (CDSS) y debe ser revisado por un profesional registrado antes de cualquier intervención.</p>
-  </div>
-</body>
-</html>`;
+      // Moxa
+      moxibustionType: undefined,
+      moxibustionPoints: undefined,
+      moxibustionDuration: undefined,
+      moxibustionFrequency: undefined,
+      moxibustionContraindications: undefined,
+
+      // Ventosas
+      cuppingType: undefined,
+      cuppingLocation: undefined,
+      cuppingDuration: undefined,
+      cuppingFrequency: undefined,
+      cuppingNotes: undefined,
+
+      // Tuina
+      tuinaTechniques: undefined,
+      tuinaDuration: undefined,
+      tuinaFrequency: undefined,
+      tuinaContraindications: undefined,
+
+      // Dietética
+      dietaryAdvice: undefined,
+      dietaryAvoid: undefined,
+      dietaryConstitution: undefined,
+
+      // Ejercicios
+      exerciseType: undefined,
+      exerciseRoutine: undefined,
+      exerciseContraindications: undefined,
+
+      // Fitoterapia
+      herbalFormula: fukuokaResult.data.treatment_proposal.herbal_formula || undefined,
+      herbalIngredients: undefined,
+      herbalModifications: undefined,
+      herbalDosage: undefined,
+      herbalAdministration: undefined,
+      herbalDuration: undefined,
+      herbalFrequency: undefined,
+      herbalContraindications: undefined,
+      herbalTgaStatus: undefined,
+      herbalAhpraWarning: undefined,
+
+      // Prognosis
+      prognosis: undefined,
+      followUpPlan: undefined,
+      expectedOutcomes: undefined,
+      redFlags: undefined,
+      referralNeeded: kantResult.verdict === 'ROJO',
+      referralTo: kantResult.verdict === 'ROJO' ? 'General Practitioner / Emergency' : undefined,
+      referralReason: kantResult.violations.length > 0 
+        ? kantResult.violations.map((v: { message: string }) => v.message).join('; ')
+        : undefined,
+
+      // Consentimiento
+      informedConsent: undefined,
+      consentDate: undefined,
+      patientSignature: undefined,
+      practitionerSignature: undefined,
+      riskAcknowledged: undefined,
+      privacyAcknowledged: undefined,
+    },
+    kant: {
+      status: kantResult.verdict === 'ROJO' ? 'red' : kantResult.verdict === 'AMARILLO' ? 'yellow' : 'green',
+      score: kantResult.score || (kantResult.violations.length > 0 ? 50 : 100), // Si hay violaciones pero no score, asumimos 0. Si no hay violaciones y no hay score, asumimos 100.
+      alerts: JSON.stringify(kantResult.violations || []),
+      contraindications: JSON.stringify(kantResult.contraindications || []),
+      auditTrail: JSON.stringify(kantResult.auditTrail || kantResult.violations || []), // Si no hay auditTrail, usamos las violaciones como proxy para el historial de auditoría
+    },
+    rag: {
+      citations: undefined,
+    },
+    system: {
+      foucaultVersion: '2.2',
+      ragChunksUsed: undefined,
+      openrouterModel: 'GPT-4o-mini',
+      generationTimestamp: new Date().toISOString(),
+      forensicHash: kantResult.originalProposalHash,
+    },
+  };
 }

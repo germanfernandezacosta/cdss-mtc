@@ -19,13 +19,12 @@ export async function GET(
 
     const query: EHRQuery = {
       patientHash: hash,
-      fromDate: searchParams.get("from") || undefined,
-      toDate: searchParams.get("to") || undefined,
+      dateFrom: searchParams.get("from") || undefined,
+      dateTo: searchParams.get("to") || undefined,
       limit: searchParams.get("limit") ? parseInt(searchParams.get("limit")!) : undefined,
-      offset: searchParams.get("offset") ? parseInt(searchParams.get("offset")!) : undefined,
     };
 
-    const consultations = getConsultationsByPatient(query);
+    const consultations = getConsultationsByPatient(hash);
     const stats = getPatientStats(hash);
 
     return NextResponse.json({

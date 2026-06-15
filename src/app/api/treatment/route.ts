@@ -1,19 +1,41 @@
 // src/app/api/treatment/route.ts
-// API Route de Tratamiento — RAG + KANT + FUKUOKA-H + FOUCAULT + EHR v2.2
-// FIX: Compatibilidad con payload del nuevo frontend (symptoms en consultation, pregnancy en patient)
+// API Route de Tratamiento — CDSS MTC Premium v2.3 "Cerebro NotebookLM"
+// v2.3: Prompt unificado narrativo + memoria clínica + PDFs narrativos
+// FIX v3.0: Corregido orden de variables, ehrId consistente, campos NOT NULL completos
 
 import { NextRequest, NextResponse } from 'next/server';
 import { KantEngine } from '@/lib/kant/engine';
 import { buildRAGContext } from '@/lib/rag/contextBuilder';
-import { generateTreatment } from '@/lib/fukuoka-h/engine';
+import { generateTreatment, parseNotebookLMResponse } from '@/lib/fukuoka-h/engine';
 import { deidentifyPatient } from '@/lib/privacy/deidentify';
-import { generateDoublePdf } from '@/lib/foucault/engine';
-import { saveConsultation, saveFoucaultPDFs } from '@/lib/ehr/store';
+import { saveConsultation, getLastConsultationByHash } from '@/lib/ehr/store';
 import { type NewConsultation } from '@/lib/ehr/schema';
-import { type KantResult } from '@/lib/kant/types';
+import { db } from '@/lib/ehr/db';
+import { patients } from '@/lib/ehr/schema';
+import { and, eq } from 'drizzle-orm';
+
+function resolveEhrId(patient: TreatmentRequest['patient']): string {
+  // 1. Si viene en el payload, usarlo directamente
+  if (patient.patientId) return patient.patientId;
+  
+  // 2. Fallback: buscar en BD por nombre + DOB
+  if (patient.name && patient.dob) {
+    const found = db.select()
+      .from(patients)
+      .where(and(eq(patients.name, patient.name), eq(patients.dob, patient.dob)))
+      .get();
+    if (found) {
+      console.log('[resolveEhrId] Fallback BD encontrado:', found.ehrId);
+      return found.ehrId;
+    }
+  }
+  
+  console.warn('[resolveEhrId] No se pudo resolver ehrId para:', patient.name, patient.dob);
+  return '';
+}
 
 // ═══════════════════════════════════════════════════════════════════════
-// INTERFACES — Alineadas con el frontend v2.2
+// INTERFACES
 // ═══════════════════════════════════════════════════════════════════════
 
 export interface TreatmentRequest {
@@ -21,14 +43,18 @@ export interface TreatmentRequest {
     name: string;
     dob: string;
     gender: string;
+    patientId?: string;
     pregnancy?: boolean;
     history?: string;
-    medicalHistory?: string;        // ← compatibilidad legacy
+    medicalHistory?: string;
     diagnosis?: string;
     medications?: string[];
     allergies?: string[];
-    symptoms?: string;              // ← compatibilidad legacy
-    safetyAlerts?: Record<string, boolean>; // ← compatibilidad legacy
+    symptoms?: string;
+    safetyAlerts?: Record<string, boolean>;
+    tongue?: string;
+    pulse?: string;
+    ryodoraku?: Record<string, number>;
   };
   consultation: {
     goal: string;
@@ -37,173 +63,8 @@ export interface TreatmentRequest {
     symptoms?: string;
     ryodoraku?: Record<string, number>;
     preferences?: string[];
-    safetyAlerts?: Record<string, boolean>; // ← nuevo frontend v2.2
+    safetyAlerts?: Record<string, boolean>;
   };
-}
-
-// ═══════════════════════════════════════════════════════════════════════
-// ADAPTADOR KANT → FOUCAULT
-// ═══════════════════════════════════════════════════════════════════════
-
-function adaptKantForFoucault(kantResult: KantResult): any {
-  const statusMap: Record<string, string> = {
-    green: 'VERDE',
-    yellow: 'AMARILLO',
-    red: 'ROJO',
-  };
-
-  const violations: any[] = [];
-
-  for (const alert of kantResult.alerts || []) {
-    violations.push({
-      ruleId: alert.code,
-      severity: alert.severity === 'absolute' ? 'ROJO' : alert.severity === 'high' ? 'ROJO' : 'AMARILLO',
-      category: alert.category.toUpperCase() as 'ACUPUNCTURE' | 'HERBAL' | 'GENERAL',
-      message: alert.message,
-    });
-  }
-
-  for (const contraindication of kantResult.contraindications || []) {
-    violations.push({
-      ruleId: `KANT-CONTRA-${contraindication.type.toUpperCase()}`,
-      severity: contraindication.severity === 'absolute' ? 'ROJO' : contraindication.severity === 'high' ? 'ROJO' : 'AMARILLO',
-      category: contraindication.type === 'herb' ? 'HERBAL' : contraindication.type === 'point' ? 'ACUPUNCTURE' : 'GENERAL',
-      message: contraindication.reason,
-    });
-  }
-
-  return {
-    verdict: statusMap[kantResult.status] || 'VERDE',
-    status: kantResult.status,
-    score: kantResult.score,
-    alerts: kantResult.alerts,
-    contraindications: kantResult.contraindications,
-    clearedForTreatment: kantResult.clearedForTreatment,
-    requiresSupervision: kantResult.requiresSupervision,
-    requiresPhysicianClearance: kantResult.requiresPhysicianClearance,
-    auditTrail: kantResult.auditTrail,
-    violations,
-    totalRulesChecked: kantResult.auditTrail?.length || 0,
-    evaluatedAt: new Date().toISOString(),
-    engineVersion: 'KANT-v2.2',
-    originalProposalHash: '',
-  };
-}
-
-// ═══════════════════════════════════════════════════════════════════════
-// DIÁLOGO FUKUOKA-H ↔ KANT
-// ═══════════════════════════════════════════════════════════════════════
-
-type KantVerdict = 'PASS' | 'FAIL_SOFT' | 'FAIL_HARD';
-
-interface DialogueRound {
-  attempt: number;
-  fukuokaProposal: any;
-  kantResult: KantResult;
-  verdict: KantVerdict;
-  feedback: string;
-}
-
-function evaluateKantVerdict(kantResult: KantResult): { verdict: KantVerdict; feedback: string } {
-  // FAIL_HARD: Contraindicaciones absolutas
-  if (kantResult.contraindications?.some((c: any) => c.severity === 'absolute')) {
-    return {
-      verdict: 'FAIL_HARD',
-      feedback: `CONTRAINDICACIÓN ABSOLUTA: ${kantResult.contraindications
-        .filter((c: any) => c.severity === 'absolute')
-        .map((c: any) => c.reason)
-        .join('; ')}. Este tratamiento no puede ser administrado bajo ninguna circunstancia.`
-    };
-  }
-
-  // FAIL_HARD: Score crítico (≥ 70)
-  if (kantResult.status === 'red' && (kantResult.score || 0) >= 70) {
-    return {
-      verdict: 'FAIL_HARD',
-      feedback: `RIESGO CRÍTICO: Score de seguridad ${kantResult.score}/100. ${kantResult.alerts
-        ?.filter((a: any) => a.severity === 'high' || a.severity === 'absolute')
-        .map((a: any) => a.message)
-        .join('; ')}. Requiere evaluación médica directa.`
-    };
-  }
-
-  // FAIL_SOFT: Status red o yellow con problemas corregibles
-  if (kantResult.status === 'red' || kantResult.status === 'yellow') {
-    const feedbackParts: string[] = [];
-
-    if (kantResult.contraindications?.length > 0) {
-      feedbackParts.push(`CONTRAINDICACIONES: ${kantResult.contraindications
-        .map((c: any) => `${c.item} → ${c.reason} (alternativa: ${c.alternative || 'consultar manual'})`)
-        .join('; ')}`);
-    }
-
-    if (kantResult.alerts?.length > 0) {
-      feedbackParts.push(`ALERTAS: ${kantResult.alerts
-        .map((a: any) => `${a.message} (${a.recommendation || 'revisar'})`)
-        .join('; ')}`);
-    }
-
-    return {
-      verdict: 'FAIL_SOFT',
-      feedback: feedbackParts.join('\n')
-    };
-  }
-
-  // PASS: Todo verde
-  return {
-    verdict: 'PASS',
-    feedback: 'Tratamiento validado por KANT. Proceder a documentación.'
-  };
-}
-
-function buildFukuokaPrompt(
-  patient: any,
-  consultation: any,
-  kantProfile: any,
-  ragContext: any,
-  previousAttempt?: DialogueRound
-): { systemPrompt: string; userPrompt: string } {
-
-  const baseSystemPrompt = `Eres FUKUOKA-H, asistente clínico de Medicina Tradicional China con nivel de maestro (Van Nghi, Nogueira).
-
-REGLAS DE SEGURIDAD (KANT):
-${kantProfile.auditTrail?.join('\n') || 'Sin advertencias previas'}
-${kantProfile.contraindications?.length > 0 ? '\nCONTRAINDICACIONES ACTIVAS:\n' + kantProfile.contraindications.map((c: any) => `- ${c.item}: ${c.reason}`).join('\n') : ''}
-
-CONTEXTO DOCUMENTAL (basado en evidencia):
-${ragContext.context}
-
-Instrucciones:
-1. Analiza el patrón (síndrome) según teoría Zang-Fu
-2. Propone puntos de acupuntura con localización anatómica precisa
-3. Propone fórmula/herbas con dosis seguras (referencia Bensky/Chen)
-4. Justifica cada decisión con rationale clínico
-5. Cita las fuentes usando los IDs proporcionados
-
-Responde ÚNICAMENTE en JSON válido con esta estructura:
-{
-  "syndrome": "string",
-  "points": [{"name":"string","location":"string","indication":"string"}],
-  "herbs": [{"name":"string","dose":"string","preparation":"string"}],
-  "rationale": "string"
-}`;
-
-  const feedbackPrompt = previousAttempt
-    ? `\n\n═══ FEEDBACK DEL SUPERVISOR KANT (Intento ${previousAttempt.attempt}) ═══\nKANT rechazó la propuesta anterior con el siguiente veredicto: ${previousAttempt.verdict}\n\nPROBLEMAS DETECTADOS:\n${previousAttempt.feedback}\n\nReformula el tratamiento corrigiendo EXACTAMENTE estos problemas. Mantén la coherencia clínica.`
-    : '';
-
-  const systemPrompt = baseSystemPrompt + feedbackPrompt;
-
-  const userPrompt = `DATOS DEL PACIENTE:
-- Síntomas: ${consultation.symptoms || patient.symptoms || 'No especificado'}
-- Edad: ${calculateAge(patient.dob)} años
-- Sexo: ${patient.gender}
-- Objetivo: ${consultation.goal}
-${patient.diagnosis ? `- Diagnóstico previo: ${patient.diagnosis}` : ''}
-${patient.history ? `- Historial médico: ${patient.history}` : ''}
-${patient.medications?.length ? `- Fármacos actuales: ${patient.medications.join(', ')}` : ''}`;
-
-  return { systemPrompt, userPrompt };
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -219,12 +80,10 @@ function calculateAge(dob: string): number {
   return age;
 }
 
-/** Extrae síntomas del payload con fallback para compatibilidad legacy */
 function getSymptoms(body: TreatmentRequest): string {
   return (body.consultation?.symptoms || body.patient?.symptoms || '').trim();
 }
 
-/** Extrae embarazo del payload con múltiples fuentes */
 function getPregnancy(body: TreatmentRequest): boolean {
   return !!(
     body.patient?.pregnancy ||
@@ -233,7 +92,6 @@ function getPregnancy(body: TreatmentRequest): boolean {
   );
 }
 
-/** Extrae alertas de seguridad del payload con múltiples fuentes */
 function getSafetyAlerts(body: TreatmentRequest): Record<string, boolean> {
   const fromConsultation = body.consultation?.safetyAlerts || {};
   const fromPatient = body.patient?.safetyAlerts || {};
@@ -243,7 +101,218 @@ function getSafetyAlerts(body: TreatmentRequest): Record<string, boolean> {
     pacemaker: !!(fromConsultation.pacemaker || fromPatient.pacemaker),
     immunodeficiency: !!(fromConsultation.immunodeficiency || fromPatient.immunodeficiency),
     epilepsy: !!(fromConsultation.epilepsy || fromPatient.epilepsy),
+    anticoagulants: !!(fromConsultation.anticoagulants || fromPatient.anticoagulants),
   };
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// PROMPT BUILDER
+// ═══════════════════════════════════════════════════════════════════════
+
+function buildNotebookLMPrompt(
+  patient: any,
+  consultation: any,
+  kantProfile: any,
+  ragContext: any,
+  lastConsultation: any,
+  previousAttempt?: any
+): { systemPrompt: string; userPrompt: string } {
+
+  const age = calculateAge(patient.dob);
+  const isPregnant = patient.pregnancy;
+  const symptoms = getSymptoms({ patient, consultation } as TreatmentRequest);
+
+  const safetyBlocks: string[] = [];
+
+  if (isPregnant) {
+    safetyBlocks.push(`⚠️ EMBARAZO — RESTRICCIONES ABSOLUTAS:
+- PUNTOS PROHIBIDOS (nunca proponer): SP6, LI4, GB21, CV3-CV7, BL60, BL67, SI1, ST12, GB26-GB30, BL31-34
+- HIERBAS PROHIBIDAS: Fu Zi, Chuan Wu, Cao Wu, Ban Xia, Tian Nan Xing, Ba Dou, Qian Niu Zi, Gan Sui, Yuan Hua, Jing Da Ji, Shang Lu, She Xiang, Bing Lang, Lei Wan, Wu Gong, Quan Xie, Zhu Sha, Xiong Huang, Qing Fen
+- TÉCNICAS SEGURAS: Acupuntura manual superficial, moxibustión indirecta, tuina suave, auriculoterapia con semillas
+- ZONAS SEGURAS: Extremidades superiores, espalda alta (>L3), puntos distales tipo ST36, SP9, PC6, Yintang`);
+  }
+
+  if (patient.safetyAlerts?.pacemaker) {
+    safetyBlocks.push(`⚠️ MARCAPASOS — PROHIBIDO: Electroacupuntura, TENS, laseracupuntura alta potencia, magnetoterapia, sangrado. PERMITIDO: Acupuntura manual, moxibustión, ventosas secas.`);
+  }
+
+  if (patient.medications?.some((m: string) => /warfarina|apixaban|rivaroxaban|dabigatrán|edoxaban|heparina/i.test(m))) {
+    safetyBlocks.push(`⚠️ ANTICOAGULANTE — Evitar punción profunda, zonas de riesgo de hematoma. No sangrado intencional. Punción superficial 0.20mm permitida.`);
+  }
+
+  if (patient.safetyAlerts?.epilepsy) {
+    safetyBlocks.push(`⚠️ EPILEPSIA — PROHIBIDO: Electroacupuntura >100Hz en cabeza/cara, láser alta intensidad. PRECAUCIÓN: Puntos craneales DU20, GB20, EX-HN1 (punción superficial).`);
+  }
+
+  if (age < 7) {
+    safetyBlocks.push(`⚠️ PEDIÁTRICO (${age}a) — Preferir shonishin, masaje tuina, moxa indirecta, auriculoterapia con semillas.`);
+  } else if (age < 12) {
+    safetyBlocks.push(`⚠️ PEDIÁTRICO (${age}a) — Agujas 0.16-0.20mm, retención máxima 10-15 min. Evitar fontanela anterior.`);
+  }
+
+  const safetyPrefix = safetyBlocks.length > 0
+    ? `\n\n═══════════════════════════════════════════════════\nPROTOCOLOS DE SEGURIDAD ACTIVOS (incumplimiento = rechazo automático):\n${safetyBlocks.join('\n\n')}\n═══════════════════════════════════════════════════\n`
+    : '';
+
+  let memoryBlock = '';
+  if (lastConsultation) {
+    memoryBlock = `\n\n═══════════════════════════════════════════════════\nMEMORIA CLÍNICA — CONSULTA ANTERIOR (${lastConsultation.consultationDate}):
+- Síndrome previo: ${lastConsultation.syndrome || 'No registrado'}
+- Puntos utilizados: ${lastConsultation.points ? lastConsultation.points.map((p: any) => p.name || p).join(', ') : 'No registrado'}
+- Evolución registrada: ${lastConsultation.evolutionNotes || 'Sin notas de evolución'}
+- Resumen técnico previo: ${lastConsultation.summarySectionB ? lastConsultation.summarySectionB.substring(0, 300) + '...' : 'No disponible'}
+═══════════════════════════════════════════════════\n`;
+  }
+
+  const feedbackBlock = previousAttempt
+    ? `\n\n═══ FEEDBACK DEL SUPERVISOR KANT (Intento ${previousAttempt.attempt}) ═══\nVeredicto: ${previousAttempt.verdict}\nProblemas: ${previousAttempt.feedback}\n\nReformula el tratamiento corrigiendo EXACTAMENTE estos problemas. Elimina puntos/herbas/técnicas prohibidas. Mantén coherencia clínica y narrativa.\n`
+    : '';
+
+  const systemPrompt = `Eres FUKUOKA-H v2.3, asistente clínico senior de Medicina Tradicional China (MTC), formado en la escuela de Van Nghi y Nogueira. Operas bajo supervisión del motor KANT de seguridad clínica.
+
+MISIÓN: Generar un informe médico integral en 3 secciones narrativas para un CDSS forense australiano (AHPRA/TGA).
+
+REGLAS ABSOLUTAS:
+1. Responde ÚNICAMENTE en español (medical Spanish, Australia).
+2. NO uses JSON en el cuerpo narrativo. Usa texto fluido, profesional, forense.
+3. Al final del mensaje, incluye un bloque JSON estructurado entre \`\`\`json y \`\`\`.
+4. Respeta TODAS las contraindicaciones de seguridad proporcionadas abajo.
+5. NO propongas puntos, hierbas o técnicas prohibidas para este paciente.
+6. Integra las citaciones RAG naturalmente en el texto de la Sección B (ej: "Según el Vademecum Español, pp. 45-47...").
+7. La Sección C debe usar metáforas comprensibles, SIN tecnicismos, SIN nombrar enfermedades occidentales como diagnóstico.
+8. Si hay MEMORIA CLÍNICA, describe la evolución desde la consulta anterior en la Sección C.
+9. PROHIBICIÓN ABSOLUTA EN TEXTO: Si el paciente está embarazada, NUNCA menciones en el texto narrativo los puntos SP6/Sanyinjiao, LI4/Hegu, GB21/Jianjing, CV3-CV7, BL60/Kunlun, BL67/Zhiyin, SI1/Shaoze, ST12/Quepen, GB26-GB30 ni ningún punto de la lista de prohibidos. Usa únicamente puntos seguros como ST36, SP9, PC6, Yintang. Si necesitas un punto prohibido para el razonamiento, descríbelo indirectamente como "puntos de regulación del meridiano X" sin nombrarlo.
+
+ESTRUCTURA OBLIGATORIA DE RESPUESTA:
+
+=== SECCIÓN A — ALERTA KANT (Seguridad) ===
+Estado: [VERDE / AMARILLO / ROJO]
+Justificación narrativa (2-3 párrafos): Explica el perfil de riesgo del paciente, factores de seguridad identificados, y por qué el estado es X. Menciona precauciones específicas para esta sesión. Si no hay riesgos, confirma explícitamente que el perfil es seguro para tratamiento MTC.
+
+=== SECCIÓN B — INFORME TÉCNICO FUKUOKA (Director Médico) ===
+Diagnóstico bioenergético integrado: Conecta lengua, pulso y ryodoraku en una narrativa coherente. NO listas desconectadas. Explica el patrón Zang-Fu identificado.
+Protocolo de tratamiento: Describe puntos de acupuntura con justificación clínica de cada uno en texto fluido. Incluye localización anatómica precisa.
+Cronograma clínico: Fases de tratamiento y objetivos medibles (ej: "Fase 1 (semanas 1-2): regulación del Qi del Hígado...").
+Citaciones RAG: Integra naturalmente las referencias documentales.
+
+=== SECCIÓN C — INFORME FOUCAULT (Comunicación al Paciente) ===
+Metáfora comprensible: Explica el diagnóstico MTC con una imagen natural (río, jardín, clima, etc.).
+Evolución: ${lastConsultation ? 'Compara con la consulta anterior: qué ha mejorado, qué falta, qué se mantiene.' : 'Esta es la primera consulta. Establecemos línea base.'}
+Recomendaciones prácticas: Alimentación, hábitos, ejercicios concretos y realizables.
+Pautas de seguimiento: Cuándo volver, señales de alarma.
+Disclaimer: Este informe no sustituye el juicio médico de un profesional registrado.
+
+=== METADATOS ESTRUCTURADOS (JSON) ===
+\`\`\`json
+{
+  "syndrome": "string - nombre del síndrome MTC",
+  "points": [{"name":"string","location":"string","indication":"string"}],
+  "herbs": [{"name":"string","dose":"string","preparation":"string"}],
+  "rationale": "string - resumen técnico del razonamiento"
+}
+\`\`\`
+
+CONTEXTO DOCUMENTAL (RAG):
+${ragContext.context || 'Sin contexto documental disponible.'}
+
+REGLAS DE SEGURIDAD (KANT):
+${kantProfile.auditTrail?.join('\n') || 'Sin advertencias previas'}
+${kantProfile.contraindications?.length > 0 ? '\nCONTRAINDICACIONES ACTIVAS:\n' + kantProfile.contraindications.map((c: any) => `- ${c.item}: ${c.reason}`).join('\n') : ''}
+${safetyPrefix}
+${feedbackBlock}`;
+
+  const tongueData = consultation?.tongue || patient?.tongue || 'No especificado';
+  const pulseData = consultation?.pulse || patient?.pulse || 'No especificado';
+  const ryodorakuData = consultation?.ryodoraku || patient?.ryodoraku || {};
+  const medicalHistoryData = patient?.history || patient?.medicalHistory || 'No especificado';
+
+  const ryodorakuFormatted = Object.keys(ryodorakuData).length > 0
+    ? Object.entries(ryodorakuData).map(([meridian, value]) => `${meridian}: ${value}`).join(', ')
+    : 'No registrado';
+
+  const userPrompt = `DATOS DEL PACIENTE:
+- Nombre: ${patient.name}
+- Edad: ${age} años
+- Sexo: ${patient.gender}
+- Objetivo: ${consultation?.goal || 'No especificado'}
+- Síntomas: ${symptoms || 'No especificado'}
+
+EXPLORACIÓN CLÍNICA OBJETIVA:
+- Diagnóstico de lengua: ${tongueData}
+- Lectura de pulso: ${pulseData}
+- Valores Ryodoraku: ${ryodorakuFormatted}
+
+${patient?.diagnosis ? `- Diagnóstico previo: ${patient.diagnosis}` : ''}
+${medicalHistoryData !== 'No especificado' ? `- Historial médico: ${medicalHistoryData}` : ''}
+${patient?.medications?.length ? `- Fármacos actuales: ${patient.medications.join(', ')}` : ''}
+${patient?.allergies?.length ? `- Alergias: ${patient.allergies.join(', ')}` : ''}
+
+${memoryBlock}
+
+Genera el informe completo siguiendo EXACTAMENTE la estructura de 3 secciones + JSON.`;
+
+  return { systemPrompt, userPrompt };
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// SANITIZADOR
+// ═══════════════════════════════════════════════════════════════════════
+
+function sanitizeMetadata(
+  metadata: any,
+  safetyAlerts: Record<string, boolean>
+): any {
+  let clean = { ...metadata };
+
+  if (safetyAlerts.pregnancy && clean.points) {
+    const forbiddenPoints = [
+      'SP6','LI4','GB21','CV3','CV4','CV5','CV6','CV7',
+      'BL60','BL67','SI1','ST12','GB26','GB27','GB28','GB29','GB30',
+      'BL31','BL32','BL33','BL34','SANYINJIAO','HEGU','JIANJING',
+      'ZHONGJI','GUANYUAN','SHIMEN','QIHAO','YINJIAO','KUNLUN',
+      'ZHIYIN','SHAOZE','QUEPEN','DAIMAI','WUSHU','WEIDAO','JULIAO',
+      'HUANTIAO','BALIAO'
+    ];
+
+    const normalizePoint = (name: string): string => {
+      return name.toUpperCase()
+        .replace(/\s/g, '')
+        .replace(/[()]/g, '')
+        .replace(/-/g, '')
+        .replace(/^(\d+)V$/, 'BL$1')
+        .replace(/^(\d+)E$/, 'ST$1')
+        .replace(/^(\d+)BP$/, 'SP$1')
+        .replace(/^GI(\d+)$/, 'LI$1')
+        .replace(/^IG(\d+)$/, 'SI$1')
+        .replace(/^MC(\d+)$/, 'PC$1')
+        .replace(/^RM(\d+)$/, 'CV$1')
+        .replace(/^H(\d+)$/, 'LR$1')
+        .replace(/^VB(\d+)$/, 'GB$1');
+    };
+
+    const safePoints = clean.points.filter((p: any) => {
+      const rawName = (p.name || p).toString();
+      const normalized = normalizePoint(rawName);
+      const isForbidden = forbiddenPoints.some(fp =>
+        normalized === fp || normalized.includes(fp) || fp.includes(normalized)
+      );
+      if (isForbidden) console.log(`[SANITIZER v2.3] Filtrado punto prohibido: ${rawName}`);
+      return !isForbidden;
+    });
+
+    if (clean.points.length > 0 && safePoints.length === 0) {
+      clean.points = [
+        { name: 'ST36', location: '3 cun inferior a la rótula, 1 cun lateral a la cresta tibial', indication: 'Tonificación Qi general, seguro en embarazo' },
+        { name: 'SP9', location: 'Depresión inferior al borde medial de la rótula', indication: 'Drenaje humedad Bazo, seguro en embarazo' },
+        { name: 'PC6', location: '2 cun proximal a la flexura de la muñeca, entre tendones', indication: 'Náuseas, ansiedad, seguro en embarazo' },
+        { name: 'Yintang', location: 'Entre las cejas', indication: 'Calmante Shen, seguro en embarazo' }
+      ];
+    } else {
+      clean.points = safePoints;
+    }
+  }
+
+  return clean;
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -252,48 +321,63 @@ function getSafetyAlerts(body: TreatmentRequest): Record<string, boolean> {
 
 export async function POST(req: NextRequest) {
   const consultationDate = new Date().toISOString();
-  const dialogueHistory: DialogueRound[] = [];
+  const dialogueHistory: any[] = [];
 
   try {
     const body: TreatmentRequest = await req.json();
+    console.log(`[v2.3] Payload recibido: ${JSON.stringify(body, null, 2)}`);
     const { patient, consultation } = body;
+    console.log('>>> DEBUG payload patient:', JSON.stringify(patient, null, 2));
 
-    // ─── Normalizar campos críticos (nunca undefined para la DB) ───
+    const enrichedPatient = {
+      ...patient,
+      pregnancy: getPregnancy(body),
+      safetyAlerts: getSafetyAlerts(body),
+      age: calculateAge(patient.dob)
+    };
+
+    // Normalizar campos críticos
     const symptoms = getSymptoms(body);
     const safetyAlerts = getSafetyAlerts(body);
-    const tongue = consultation?.tongue || '';
-    const pulse = consultation?.pulse || '';
-    const ryodoraku = consultation?.ryodoraku || {};
+    const tongue = consultation?.tongue || patient?.tongue || '';
+    const pulse = consultation?.pulse || patient?.pulse || '';
+    const ryodorakuRaw = consultation?.ryodoraku || patient?.ryodoraku || {};
+    const ryodoraku: Record<string, number> = {};
+    for (const [key, value] of Object.entries(ryodorakuRaw)) {
+      ryodoraku[key] = typeof value === 'string' ? parseInt(value, 10) : value;
+    }
     const medicalHistory = patient?.history || patient?.medicalHistory || '';
 
-    // ═══════════════════════════════════════════════════════════════
-    // PASO 0: Anonimización y perfil de seguridad base
-    // ═══════════════════════════════════════════════════════════════
-
+    // ─── PASO 0: Anonimización + KANT base ───
     const anonymized = deidentifyPatient({
       name: patient.name,
       dob: patient.dob,
       symptoms,
       medicalHistory
-    });
+    }, patient.patientId);
+
+    // v2.3: Recuperar memoria clínica
+    const lastConsultation = getLastConsultationByHash(anonymized.patientHash);
+    if (lastConsultation) {
+      console.log(`[v2.3] Memoria clínica recuperada: ${lastConsultation.consultationDate}`);
+    }
 
     const kantBase = new KantEngine();
     const safetyProfile: any = {
       pregnancy: safetyAlerts.pregnancy,
       pacemaker: safetyAlerts.pacemaker,
       epilepsy: safetyAlerts.epilepsy || false,
-      anticoagulants: safetyAlerts.bleedingDisorder ? ['anticoagulant'] : [],
+      anticoagulants: safetyAlerts.anticoagulants ? ['apixaban'] : [],
       antiplatelets: safetyAlerts.bleedingDisorder ? ['antiplatelet'] : [],
       currentPharmaceuticals: patient.medications || [],
       age: calculateAge(patient.dob),
       allergies: patient.allergies || [],
-      medicalHistory
+      medicalHistory: medicalHistory,
+      knownAllergies: patient.allergies || [],
     };
 
-    // Evaluación base del paciente (sin tratamiento propuesto aún)
     const baseKantResult = kantBase.evaluate(safetyProfile);
 
-    // Si el perfil base ya es crítico, bloqueo inmediato
     if (baseKantResult.status === 'red' && (baseKantResult.score || 0) >= 80) {
       return NextResponse.json({
         error: 'SAFETY_BLOCKED_BASELINE',
@@ -303,7 +387,7 @@ export async function POST(req: NextRequest) {
       }, { status: 403 });
     }
 
-    // RAG (se hace una sola vez, antes del diálogo)
+    // RAG
     const ragQuery = `${symptoms} ${patient.diagnosis || ''} ${consultation.goal}`;
     const ragContext = await buildRAGContext({
       query: ragQuery,
@@ -312,67 +396,77 @@ export async function POST(req: NextRequest) {
       minSimilarity: 0.6
     });
 
-    // ═══════════════════════════════════════════════════════════════
-    // PASO 1-3: DIÁLOGO FUKUOKA-H ↔ KANT (máximo 3 intentos)
-    // ═══════════════════════════════════════════════════════════════
-
-    let finalProposal: any = null;
-    let finalKantResult: KantResult = baseKantResult;
-    let finalVerdict: KantVerdict = 'FAIL_HARD';
+    // ─── PASO 1-3: DIÁLOGO FUKUOKA-H ↔ KANT ───
+    let finalNotebookResult: any = null;
+    let finalKantResult = baseKantResult;
+    let finalVerdict = 'FAIL_HARD';
     let humanRequired = false;
     let humanReason = '';
 
     for (let attempt = 1; attempt <= 3; attempt++) {
-      console.log(`[DIALOGO] Intento ${attempt}/3`);
+      console.log(`[v2.3 DIALOGO] Intento ${attempt}/3`);
 
       const previousRound = attempt > 1 ? dialogueHistory[dialogueHistory.length - 1] : undefined;
-      const { systemPrompt, userPrompt } = buildFukuokaPrompt(
-        patient,
+      const { systemPrompt, userPrompt } = buildNotebookLMPrompt(
+        enrichedPatient,
         consultation,
         baseKantResult,
         ragContext,
+        lastConsultation,
         previousRound
       );
 
-      // Fukuoka-H propone tratamiento
-      const llmResponse = await generateTreatment({
+      const rawLlmResponse = await generateTreatment({
         systemPrompt,
         userPrompt,
-        model: process.env.LLM_MODEL || 'openai/gpt-3.5-turbo',
-        temperature: attempt === 1 ? 0.7 : 0.5
+        model: process.env.LLM_MODEL || 'openai/gpt-4o-mini',
+        temperature: attempt === 1 ? 0.4 : 0.3
       });
 
-      // Construir propuesta estructurada para KANT
+      const notebookResult = parseNotebookLMResponse(rawLlmResponse);
+      const sanitizedMetadata = sanitizeMetadata(notebookResult.metadata, safetyAlerts);
+
       const proposedTreatment = {
-        points: llmResponse.points?.map((p: any) => p.name) || [],
-        herbs: llmResponse.herbs?.map((h: any) => h.name) || [],
+        points: sanitizedMetadata.points?.map((p: any) => p.name || p) || [],
+        herbs: sanitizedMetadata.herbs?.map((h: any) => h.name || h) || [],
         techniques: ['acupuntura manual'],
-        rationale: llmResponse.rationale || ''
+        rationale: sanitizedMetadata.rationale || ''
       };
 
-      // KANT evalúa el perfil del paciente + la propuesta concreta
       const kantEvaluator = new KantEngine();
       const kantResult = kantEvaluator.evaluate(
         safetyProfile,
         proposedTreatment,
-        `${llmResponse.syndrome} ${llmResponse.rationale}`
+        `${sanitizedMetadata.syndrome} ${sanitizedMetadata.rationale}`
       );
 
-      const { verdict, feedback } = evaluateKantVerdict(kantResult);
+      let verdict: 'PASS' | 'FAIL_SOFT' | 'FAIL_HARD' = 'PASS';
+      let feedback = '';
 
-      const round: DialogueRound = {
-        attempt,
-        fukuokaProposal: llmResponse,
-        kantResult,
-        verdict,
-        feedback
-      };
+      if (kantResult.contraindications?.some((c: any) => c.severity === 'absolute')) {
+        verdict = 'FAIL_HARD';
+        feedback = `CONTRAINDICACIÓN ABSOLUTA: ${kantResult.contraindications.filter((c: any) => c.severity === 'absolute').map((c: any) => c.reason).join('; ')}`;
+      } else if (kantResult.status === 'red' && (kantResult.score || 0) >= 70) {
+        verdict = 'FAIL_HARD';
+        feedback = `RIESGO CRÍTICO: Score ${kantResult.score}/100`;
+      } else if (kantResult.status === 'red' || kantResult.status === 'yellow') {
+        verdict = 'FAIL_SOFT';
+        const parts: string[] = [];
+        if (kantResult.contraindications?.length > 0) parts.push(`CONTRAINDICACIONES: ${kantResult.contraindications.map((c: any) => `${c.item} → ${c.reason}`).join('; ')}`);
+        if (kantResult.alerts?.length > 0) parts.push(`ALERTAS: ${kantResult.alerts.map((a: any) => a.message).join('; ')}`);
+        feedback = parts.join('\n');
+      } else {
+        verdict = 'PASS';
+        feedback = 'Tratamiento validado por KANT. Proceder a documentación.';
+      }
+
+      const round = { attempt, verdict, feedback, kantScore: kantResult.score, kantStatus: kantResult.status };
       dialogueHistory.push(round);
 
-      console.log(`[DIALOGO] Intento ${attempt}: ${verdict} | Score: ${kantResult.score} | Alerts: ${kantResult.alerts?.length || 0} | Contras: ${kantResult.contraindications?.length || 0}`);
+      console.log(`[v2.3 DIALOGO] Intento ${attempt}: ${verdict} | Score: ${kantResult.score}`);
 
       if (verdict === 'PASS') {
-        finalProposal = llmResponse;
+        finalNotebookResult = { ...notebookResult, metadata: sanitizedMetadata };
         finalKantResult = kantResult;
         finalVerdict = verdict;
         break;
@@ -387,200 +481,200 @@ export async function POST(req: NextRequest) {
       }
 
       if (verdict === 'FAIL_SOFT' && attempt === 3) {
-        finalProposal = llmResponse;
+        finalNotebookResult = { ...notebookResult, metadata: sanitizedMetadata };
         finalKantResult = kantResult;
         finalVerdict = verdict;
         humanRequired = true;
-        humanReason = `KANT rechazó 3 propuestas consecutivas. Problemas persistentes: ${feedback}`;
+        humanReason = `KANT rechazó 3 propuestas. Problemas: ${feedback}`;
       }
     }
 
-    // ═══════════════════════════════════════════════════════════════
-    // PASO 4: CONTROL HUMANO (si aplica)
-    // ═══════════════════════════════════════════════════════════════
+    // ─── PREPARAR DATOS COMUNES ───
+    const chainOfCustody = [
+      `[${consultationDate}] v2.3 Treatment API processed`,
+      `[${consultationDate}] Diálogo Fukuoka-H ↔ KANT: ${dialogueHistory.length} intentos`,
+      ...dialogueHistory.map((d: any) => `[${consultationDate}] Intento ${d.attempt}: ${d.verdict} (score ${d.kantScore})`),
+      `[${consultationDate}] Veredicto final: ${finalVerdict}`,
+      `[${consultationDate}] RAG: ${ragContext.citations.length} citaciones`,
+      `[${consultationDate}] LLM: ${process.env.LLM_MODEL || 'openai/gpt-4o-mini'}`
+    ];
 
+    const ragCitations = ragContext.citations.map((c: any) => ({
+      document: c.document,
+      documentId: c.documentId || c.document,
+      pageStart: c.pageStart,
+      pageEnd: c.pageEnd,
+      excerpt: c.excerpt
+    }));
+
+    const llmModel = process.env.LLM_MODEL || 'openai/gpt-4o-mini';
+
+    // ─── PASO 4: CONTROL HUMANO ───
     if (humanRequired) {
       const ehrPending: NewConsultation = {
+        ehrId: resolveEhrId(patient),
         patientHash: anonymized.patientHash,
         consultationDate,
+        language: 'es',
         patientAge: calculateAge(patient.dob),
         patientGender: patient.gender,
-        symptoms,                       // ← FIX: nunca undefined
+        symptoms,
         diagnosis: patient.diagnosis || '',
-        syndrome: finalProposal?.syndrome || 'PENDIENTE_REVISION',
-        points: finalProposal?.points || [],
-        herbs: finalProposal?.herbs || [],
+        syndrome: finalNotebookResult?.metadata?.syndrome || 'PENDIENTE_REVISION',
+        points: finalNotebookResult?.metadata?.points || [],
+        herbs: finalNotebookResult?.metadata?.herbs || [],
         rationale: humanReason,
         kantStatus: 'red',
         kantScore: finalKantResult.score,
         kantAlerts: finalKantResult.alerts || [],
         kantContraindications: finalKantResult.contraindications || [],
         kantAuditTrail: finalKantResult.auditTrail || [],
-        ragCitations: ragContext.citations.map((c: any) => ({
-          document: c.document,
-          documentId: c.documentId || c.document,
-          pageStart: c.pageStart,
-          pageEnd: c.pageEnd,
-          excerpt: c.excerpt
-        })),
-        llmModel: process.env.LLM_MODEL || 'openai/gpt-3.5-turbo',
+        ragCitations,
+        llmModel,
         foucaultPdfPath: null,
         foucaultForensicHash: null,
         foucaultEmpathicHash: null,
+        regulatoryFramework: 'AHPRA',
+        isTest: false,
         ahpraFlags: [],
         chainOfCustody: [
-          `[${consultationDate}] CONTROL HUMANO REQUERIDO`,
+          `[${consultationDate}] CONTROL HUMANO REQUERIDO v2.3`,
           `[${consultationDate}] Razón: ${humanReason}`,
-          `[${consultationDate}] Intentos Fukuoka-H: ${dialogueHistory.length}`,
-          ...dialogueHistory.map(d => `[${consultationDate}] Intento ${d.attempt}: ${d.verdict} (score ${d.kantResult.score})`)
+          `[${consultationDate}] Intentos: ${dialogueHistory.length}`,
+          ...dialogueHistory.map((d: any) => `[${consultationDate}] Intento ${d.attempt}: ${d.verdict} (score ${d.kantScore})`)
         ],
       };
 
-      const ehrId = saveConsultation(ehrPending);
+      const pendingId = saveConsultation(ehrPending);
 
       return NextResponse.json({
         error: 'HUMAN_REQUIRED',
-        message: 'El sistema no ha podido generar un tratamiento que cumpla con los filtros de seguridad.',
+        message: 'El sistema no ha podido generar un tratamiento seguro.',
         reason: humanReason,
-        dialogueHistory: dialogueHistory.map(d => ({
-          attempt: d.attempt,
-          verdict: d.verdict,
-          feedback: d.feedback,
-          kantScore: d.kantResult.score,
-          kantStatus: d.kantResult.status
-        })),
-        lastProposal: finalProposal,
+        dialogueHistory,
+        lastProposal: finalNotebookResult?.metadata,
         safety: {
           status: finalKantResult.status,
           score: finalKantResult.score,
           alerts: finalKantResult.alerts,
           contraindications: finalKantResult.contraindications
         },
-        ehr: {
-          id: ehrId,
-          patientHash: anonymized.patientHash,
-          saved: true,
-          status: 'PENDING_HUMAN_REVIEW'
-        },
+        ehr: { id: pendingId, patientHash: anonymized.patientHash, saved: true, status: 'PENDING_HUMAN_REVIEW' },
         timestamp: consultationDate
       }, { status: 422 });
     }
 
-    // ═══════════════════════════════════════════════════════════════
-    // PASO 5: FLUJO NORMAL (PASS) → Foucault + EHR
-    // ═══════════════════════════════════════════════════════════════
-
-    const kantForFoucault = adaptKantForFoucault(finalKantResult);
-
-    let foucaultResult: any = null;
-    let pdfPaths: any = null;
-    let foucaultError: string | null = null;
-
-    try {
-      foucaultResult = await generateDoublePdf({
-        patient: {
-          id: anonymized.patientHash,
-          age: calculateAge(patient.dob),
-          sex: patient.gender as "M" | "F"
-        },
-        clinicalInput: {
-          symptoms,
-          pulse,
-          tongue
-        },
-        fukuokaResult: {
-          request_id: `ehr-${Date.now()}`,
-          data: {
-            syndrome_analysis: [{
-              syndrome_name: finalProposal.syndrome,
-              confidence: 0.85,
-              supporting_evidence: ['Análisis Fukuoka-H v2.2']
-            }],
-            treatment_proposal: {
-              acupuncture_points: finalProposal.points?.map((p: any) => p.name) || [],
-              herbal_formula: finalProposal.herbs?.map((h: any) => h.name).join(', ') || null,
-              rationale: finalProposal.rationale
-            }
-          }
-        },
-        kantResult: kantForFoucault,
-        generatedAt: consultationDate
-      });
-
-      pdfPaths = saveFoucaultPDFs(
-        anonymized.patientHash,
-        consultationDate,
-        foucaultResult.forensicPdfBase64,
-        foucaultResult.empathicPdfBase64,
-        foucaultResult.auditLog.documentHashes.forensic,
-        foucaultResult.auditLog.documentHashes.empathic
-      );
-    } catch (err: any) {
-      foucaultError = err.message;
-      console.error('[FOUCAULT] Error:', err.message);
-    }
-
-    // Guardar en EHR
-    const chainOfCustody = [
-      `[${consultationDate}] Treatment API processed`,
-      `[${consultationDate}] Diálogo Fukuoka-H ↔ KANT: ${dialogueHistory.length} intentos`,
-      ...dialogueHistory.map(d => `[${consultationDate}] Intento ${d.attempt}: ${d.verdict} (score ${d.kantResult.score})`),
-      `[${consultationDate}] Veredicto final: ${finalVerdict}`,
-      `[${consultationDate}] RAG retrieved: ${ragContext.citations.length} citations`,
-      `[${consultationDate}] LLM: ${process.env.LLM_MODEL || 'openai/gpt-3.5-turbo'}`
-    ];
-
-    if (foucaultResult) {
-      chainOfCustody.push(`[${consultationDate}] Foucault PDFs generated`);
-      chainOfCustody.push(`[${consultationDate}] Forensic hash: ${foucaultResult.auditLog.documentHashes.forensic}`);
-      chainOfCustody.push(`[${consultationDate}] Empathic hash: ${foucaultResult.auditLog.documentHashes.empathic}`);
-    }
-    if (foucaultError) {
-      chainOfCustody.push(`[${consultationDate}] Foucault ERROR: ${foucaultError}`);
-    }
+    // ─── PASO 5: FLUJO NORMAL (PASS) ───
+    const sections = finalNotebookResult.sections;
+    const metadata = finalNotebookResult.metadata;
 
     const ehrRecord: NewConsultation = {
+      ehrId: resolveEhrId(patient),
       patientHash: anonymized.patientHash,
       consultationDate,
+      language: 'es',
       patientAge: calculateAge(patient.dob),
       patientGender: patient.gender,
-      symptoms,                       // ← FIX: nunca undefined
+      symptoms,
       diagnosis: patient.diagnosis || '',
-      syndrome: finalProposal.syndrome,
-      points: finalProposal.points || [],
-      herbs: finalProposal.herbs || [],
-      rationale: finalProposal.rationale,
+      syndrome: metadata.syndrome,
+      points: metadata.points || [],
+      herbs: metadata.herbs || [],
+      rationale: metadata.rationale,
+      reasoning: sections.A.substring(0, 1000),
+      sources: [],
       kantStatus: finalKantResult.status,
       kantScore: finalKantResult.score,
       kantAlerts: finalKantResult.alerts || [],
       kantContraindications: finalKantResult.contraindications || [],
       kantAuditTrail: finalKantResult.auditTrail || [],
-      ragCitations: ragContext.citations.map((c: any) => ({
-        document: c.document,
-        documentId: c.documentId || c.document,
-        pageStart: c.pageStart,
-        pageEnd: c.pageEnd,
-        excerpt: c.excerpt
-      })),
-      llmModel: process.env.LLM_MODEL || 'openai/gpt-3.5-turbo',
-      foucaultPdfPath: pdfPaths?.forensicPath || null,
-      foucaultForensicHash: foucaultResult?.auditLog.documentHashes.forensic || null,
-      foucaultEmpathicHash: foucaultResult?.auditLog.documentHashes.empathic || null,
-      ahpraFlags: foucaultResult?.auditLog.ahpraFlags.map((f: any) => ({
-        ruleId: f.ruleId,
-        term: f.term,
-        severity: f.severity
-      })) || [],
+      ragCitations,
+      llmModel,
+      foucaultPdfPath: null,
+      foucaultForensicHash: null,
+      foucaultEmpathicHash: null,
+      regulatoryFramework: 'AHPRA',
+      isTest: false,
+      ahpraFlags: [],
       chainOfCustody,
     };
 
-    const ehrId = saveConsultation(ehrRecord);
+    const savedId = saveConsultation(ehrRecord);
+
+    // v2.3: Datos para reconstruir PDFs en el cliente
+    const consultationData = {
+      patient: {
+        hash: anonymized.patientHash,
+        name: patient.name,
+        age: calculateAge(patient.dob),
+        gender: patient.gender,
+        preferredName: patient.name,
+      },
+      session: {
+        id: savedId,
+        date: consultationDate,
+      },
+      practitioner: {
+        name: undefined,
+        qualification: undefined,
+        clinic: undefined,
+        phone: undefined,
+        registration: undefined,
+      },
+      notebookLM: {
+        sectionA: sections.A,
+        sectionB: sections.B,
+        sectionC: sections.C,
+        hasEvolution: !!lastConsultation,
+        previousSyndrome: lastConsultation?.syndrome || null,
+      },
+      clinical: {
+        symptoms,
+        syndrome: metadata.syndrome,
+        rationale: metadata.rationale,
+        tongueNotes: tongue,
+        pulseOverall: pulse,
+        ryodorakuNotes: Object.entries(ryodoraku).map(([k,v]) => `${k}: ${v}`).join(', '),
+        pointsExecution: JSON.stringify(metadata.points?.map((p: any) => ({
+          point: p.name || p,
+          location: p.location || '',
+          technique: 'Acupuntura manual',
+          depth: '',
+          manipulation: '',
+          duration: '',
+        }))),
+        herbalFormula: metadata.herbs?.map((h: any) => h.name).join(', ') || undefined,
+      },
+      kant: {
+        status: finalKantResult.status,
+        score: finalKantResult.score,
+        alerts: JSON.stringify(finalKantResult.alerts || []),
+        contraindications: JSON.stringify(finalKantResult.contraindications || []),
+        auditTrail: JSON.stringify(finalKantResult.auditTrail || []),
+      },
+      system: {
+        foucaultVersion: '2.3',
+        openrouterModel: llmModel,
+        generationTimestamp: consultationDate,
+      },
+    };
 
     return NextResponse.json({
-      syndrome: finalProposal.syndrome,
-      points: finalProposal.points,
-      herbs: finalProposal.herbs,
-      rationale: finalProposal.rationale,
+      sections: {
+        A: sections.A,
+        B: sections.B,
+        C: sections.C
+      },
+      metadata: {
+        syndrome: metadata.syndrome,
+        points: metadata.points,
+        herbs: metadata.herbs,
+        rationale: metadata.rationale
+      },
+      syndrome: metadata.syndrome,
+      points: metadata.points,
+      herbs: metadata.herbs,
+      rationale: metadata.rationale,
       safety: {
         status: finalKantResult.status,
         alerts: finalKantResult.alerts || [],
@@ -589,12 +683,7 @@ export async function POST(req: NextRequest) {
       },
       dialogue: {
         rounds: dialogueHistory.length,
-        history: dialogueHistory.map(d => ({
-          attempt: d.attempt,
-          verdict: d.verdict,
-          kantScore: d.kantResult.score,
-          kantStatus: d.kantResult.status
-        }))
+        history: dialogueHistory
       },
       citations: ragContext.citations.map((c: any) => ({
         document: c.document,
@@ -602,31 +691,19 @@ export async function POST(req: NextRequest) {
         pageEnd: c.pageEnd,
         excerpt: c.excerpt
       })),
-      model: process.env.LLM_MODEL || 'openai/gpt-3.5-turbo',
+      model: llmModel,
       ehr: {
-        id: ehrId,
+        id: savedId,
         patientHash: anonymized.patientHash,
         saved: true,
         transaction: 'ACID',
       },
-      foucault: foucaultResult ? {
-        forensicHash: foucaultResult.auditLog.documentHashes.forensic,
-        empathicHash: foucaultResult.auditLog.documentHashes.empathic,
-        ahpraFlags: foucaultResult.auditLog.ahpraFlags,
-        chainOfCustody: foucaultResult.auditLog.chainOfCustody,
-        pdfs: {
-          forensic: foucaultResult.forensicPdfBase64,
-          empathic: foucaultResult.empathicPdfBase64
-        }
-      } : {
-        error: foucaultError,
-        status: 'FAILED'
-      },
+      consultationData,
       timestamp: consultationDate
     }, { status: 200 });
 
   } catch (error: any) {
-    console.error('[Treatment API]', error);
+    console.error('[Treatment API v2.3]', error);
     return NextResponse.json({
       error: 'INTERNAL_ERROR',
       message: error.message,

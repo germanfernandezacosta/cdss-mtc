@@ -1,0 +1,484 @@
+/**
+ * empathic-pdf.ts
+ * Generador PDF Empático — CDSS MTC Premium v2.2
+ * Tono cálido, humano, para el paciente.
+ * NO incluye fitoterapia (Bug #5 resuelto).
+ * Solo cliente — pdfmake v0.3.x
+ */
+
+import * as pdfMake from 'pdfmake/build/pdfmake';
+import { TDocumentDefinitions, Content } from 'pdfmake/interfaces';
+import {
+  configurePdfMake,
+  PDF_COLORS,
+} from '../pdfmake-config';
+
+// ═══════════════════════════════════════════════════════════════
+// INTERFAZ DE DATOS
+// ═══════════════════════════════════════════════════════════════
+
+export interface EmpathicPdfData {
+  patient: {
+    hash: string;
+    preferredName?: string;
+    age?: number;
+    gender?: string;
+  };
+  session: {
+    date: string;
+  };
+  practitioner: {
+    name?: string;
+    qualification?: string;
+    clinic?: string;
+    phone?: string;
+  };
+  clinical: {
+    symptoms: string;
+    syndrome?: string;
+
+    // Tratamiento resumido (sin detalles técnicos)
+    acupunctureFrequency?: string;
+    acupunctureTotalSessions?: number;
+    acupunctureDuration?: string;
+
+    moxibustionType?: string;
+    cuppingType?: string;
+    tuinaTechniques?: string;
+
+    dietaryConstitution?: string;
+    dietaryAvoid?: string;
+
+    exerciseType?: string;
+
+    // Empático
+    empathicNarrative?: string;
+    homeCareInstructions?: string;
+
+    // Seguimiento
+    followUpPlan?: string;
+    redFlags?: string;
+    prognosis?: string;
+  };
+}
+
+// ═══════════════════════════════════════════════════════════════
+// GENERADOR PRINCIPAL
+// ═══════════════════════════════════════════════════════════════
+
+export async function generateEmpathicPDF(data: EmpathicPdfData): Promise<Blob> {
+  await configurePdfMake();
+
+  const greetingName = data.patient.preferredName || 'there';
+
+  // Construir el array content dinámicamente para evitar problemas de tipado con spread
+  const content: Content[] = [
+    // ─── CABECERA CÁLIDA ───
+    {
+      columns: [
+        {
+          width: '*',
+          stack: [
+            {
+              text: 'Your Wellness Journey',
+              fontSize: 26,
+              bold: true,
+              color: PDF_COLORS.jadeDark,
+              margin: [0, 0, 0, 4] as [number, number, number, number],
+            },
+            {
+              text: 'Personal Care Plan',
+              fontSize: 14,
+              color: PDF_COLORS.gold,
+              margin: [0, 0, 0, 10] as [number, number, number, number],
+            },
+          ],
+        },
+      ],
+      margin: [0, 0, 0, 25] as [number, number, number, number],
+    },
+
+    // ─── LÍNEA DECORATIVA ───
+    {
+      canvas: [
+        {
+          type: 'line',
+          x1: 0, y1: 0,
+          x2: 495, y2: 0,
+          lineWidth: 2,
+          lineColor: PDF_COLORS.gold,
+        },
+      ],
+      margin: [0, 0, 0, 20] as [number, number, number, number],
+    },
+
+    // ─── SALUDO PERSONAL ───
+    {
+      text: `Dear ${greetingName},`,
+      fontSize: 13,
+      bold: true,
+      color: PDF_COLORS.jadeDark,
+      margin: [0, 0, 0, 12] as [number, number, number, number],
+    },
+    {
+      text: data.clinical.empathicNarrative ||
+        `Thank you for trusting us with your care today. We took time to understand your unique pattern and have prepared a gentle plan to support your body's natural healing. Remember: healing is a journey, not a race. Every small step counts.`,
+      margin: [0, 0, 0, 20] as [number, number, number, number],
+    },
+
+    // ─── CAJA: QUÉ NOS CONTASTE ───
+    {
+      table: {
+        widths: ['*'],
+        body: [
+          [
+            {
+              stack: [
+                {
+                  text: 'What You Shared With Us',
+                  fontSize: 13,
+                  bold: true,
+                  color: PDF_COLORS.jadeDark,
+                  margin: [0, 0, 0, 8] as [number, number, number, number],
+                },
+                {
+                  text: data.clinical.symptoms || 'Your main concern',
+                  fontSize: 11,
+                  bold: true,
+                  margin: [0, 0, 0, 6] as [number, number, number, number],
+                },
+                {
+                  text: data.clinical.syndrome
+                    ? `From a traditional perspective, we see this as part of a ${data.clinical.syndrome} pattern. This helps us understand the deeper picture of your health.`
+                    : 'We have carefully assessed your condition from a holistic perspective.',
+                  fontSize: 10,
+                  color: '#555',
+                },
+              ],
+              fillColor: '#ffffff',
+              margin: [15, 15, 15, 15] as [number, number, number, number],
+            },
+          ],
+        ],
+      },
+      layout: {
+        hLineWidth: () => 0,
+        vLineWidth: () => 0,
+        paddingLeft: () => 0,
+        paddingRight: () => 0,
+        paddingTop: () => 0,
+        paddingBottom: () => 0,
+      },
+      margin: [0, 0, 0, 20] as [number, number, number, number],
+    },
+
+    // ─── TU PLAN DE CUIDADO ───
+    {
+      text: 'Your Personalised Care Plan',
+      fontSize: 16,
+      bold: true,
+      color: PDF_COLORS.jadeDark,
+      margin: [0, 20, 0, 15] as [number, number, number, number],
+    },
+
+    // Acupuntura
+    {
+      text: 'Gentle Acupuncture Support',
+      fontSize: 13,
+      bold: true,
+      color: PDF_COLORS.gold,
+      margin: [0, 0, 0, 8] as [number, number, number, number],
+    },
+    {
+      text: `Today we used carefully selected points to help your body find its balance. Your treatment was tailored specifically to your individual needs and pattern.`,
+      margin: [0, 0, 0, 5] as [number, number, number, number],
+    },
+    {
+      text: [
+        { text: 'Frequency: ', bold: true },
+        data.clinical.acupunctureFrequency || 'As discussed in clinic',
+        '\n',
+        { text: 'Expected sessions: ', bold: true },
+        data.clinical.acupunctureTotalSessions
+          ? `${data.clinical.acupunctureTotalSessions} sessions`
+          : 'Personalised to your progress',
+        '\n',
+        { text: 'Duration per session: ', bold: true },
+        data.clinical.acupunctureDuration || 'Approximately 30 minutes',
+      ],
+      fontSize: 9,
+      color: '#555',
+      margin: [0, 0, 0, 18] as [number, number, number, number],
+    },
+  ];
+
+  // Moxibustión (condicional)
+  if (data.clinical.moxibustionType) {
+    content.push(
+      {
+        text: 'Warm Moxibustion Therapy',
+        fontSize: 13,
+        bold: true,
+        color: PDF_COLORS.gold,
+        margin: [0, 0, 0, 8] as [number, number, number, number],
+      },
+      {
+        text: `We may use gentle warmth therapy to support your circulation and comfort. This is a very soothing addition to your treatment that many people find deeply relaxing.`,
+        margin: [0, 0, 0, 18] as [number, number, number, number],
+      }
+    );
+  }
+
+  // Ventosas (condicional)
+  if (data.clinical.cuppingType) {
+    content.push(
+      {
+        text: 'Cupping Therapy',
+        fontSize: 13,
+        bold: true,
+        color: PDF_COLORS.gold,
+        margin: [0, 0, 0, 8] as [number, number, number, number],
+      },
+      {
+        text: `If recommended, cupping may help release tension and improve flow in areas of concern. Any marks are temporary and a normal, healthy part of the process.`,
+        margin: [0, 0, 0, 18] as [number, number, number, number],
+      }
+    );
+  }
+
+  // Tuina (condicional)
+  if (data.clinical.tuinaTechniques) {
+    content.push(
+      {
+        text: 'Therapeutic Massage (Tuina)',
+        fontSize: 13,
+        bold: true,
+        color: PDF_COLORS.gold,
+        margin: [0, 0, 0, 8] as [number, number, number, number],
+      },
+      {
+        text: `Gentle manual techniques may be used to support your muscles and energy channels. This is always done with your comfort and feedback in mind.`,
+        margin: [0, 0, 0, 18] as [number, number, number, number],
+      }
+    );
+  }
+
+  // Nutrición
+  content.push(
+    {
+      text: 'Nourishing Your Body',
+      fontSize: 13,
+      bold: true,
+      color: PDF_COLORS.gold,
+      margin: [0, 0, 0, 8] as [number, number, number, number],
+    },
+    {
+      text: data.clinical.dietaryConstitution
+        ? `Based on your constitution, we recommend focusing on foods and cooking methods that support your ${data.clinical.dietaryConstitution} pattern. Small, consistent changes in diet can be powerful allies in your healing journey.`
+        : 'We discussed foods that may support your current state. Small, consistent changes in diet can be powerful allies in your healing.',
+      margin: [0, 0, 0, 5] as [number, number, number, number],
+    }
+  );
+
+  if (data.clinical.dietaryAvoid) {
+    content.push({
+      text: [
+        { text: 'Gentle reminder: ', bold: true, color: '#8B4513' },
+        `For now, it may help to minimise or avoid: ${data.clinical.dietaryAvoid}`,
+      ],
+      fontSize: 9,
+      color: '#555',
+      margin: [0, 0, 0, 18] as [number, number, number, number],
+    });
+  }
+
+  // Ejercicios
+  content.push(
+    {
+      text: 'Movement & Breath',
+      fontSize: 13,
+      bold: true,
+      color: PDF_COLORS.gold,
+      margin: [0, 0, 0, 8] as [number, number, number, number],
+    },
+    {
+      text: data.clinical.exerciseType
+        ? `We recommend exploring ${data.clinical.exerciseType} as part of your daily rhythm. Even 10-15 minutes of gentle practice can make a meaningful difference to your energy and wellbeing.`
+        : 'Gentle movement and mindful breathing exercises were discussed. These practices help bridge the gap between your treatments and daily life.',
+      margin: [0, 0, 0, 18] as [number, number, number, number],
+    }
+  );
+
+  // Home Care Guide
+  content.push(
+    {
+      table: {
+        widths: ['*'],
+        body: [
+          [
+            {
+              stack: [
+                {
+                  text: 'Your Home Care Guide',
+                  fontSize: 13,
+                  bold: true,
+                  color: PDF_COLORS.jadeDark,
+                  margin: [0, 0, 0, 8] as [number, number, number, number],
+                },
+                {
+                  text: data.clinical.homeCareInstructions ||
+                    `• Rest well after treatment — your body is processing the work we did today.
+• Stay warm and avoid cold drafts, especially over treated areas.
+• Drink warm water throughout the day to support your system.
+• If you notice any unusual discomfort, please contact us immediately.
+• Keep a simple journal of how you feel — this helps us refine your care.`,
+                  fontSize: 10,
+                  color: '#444',
+                },
+              ],
+              fillColor: '#f0f7f4',
+              margin: [15, 15, 15, 15] as [number, number, number, number],
+            },
+          ],
+        ],
+      },
+      layout: {
+        hLineWidth: () => 0,
+        vLineWidth: () => 0,
+        paddingLeft: () => 0,
+        paddingRight: () => 0,
+        paddingTop: () => 0,
+        paddingBottom: () => 0,
+      },
+      margin: [0, 0, 0, 20] as [number, number, number, number],
+    }
+  );
+
+  // Next Steps
+  content.push(
+    {
+      text: 'Next Steps',
+      fontSize: 13,
+      bold: true,
+      color: PDF_COLORS.jadeDark,
+      margin: [0, 0, 0, 8] as [number, number, number, number],
+    },
+    {
+      text: data.clinical.followUpPlan ||
+        `We recommend scheduling your next visit to continue building on today's foundation. Consistency is key to lasting change. Please book at your earliest convenience.`,
+      margin: [0, 0, 0, 15] as [number, number, number, number],
+    }
+  );
+
+  // Señales de alarma
+  content.push(
+    {
+      text: 'When to Contact Us Immediately',
+      fontSize: 12,
+      bold: true,
+      color: PDF_COLORS.alertRed,
+      margin: [0, 10, 0, 8] as [number, number, number, number],
+    },
+    {
+      text: data.clinical.redFlags ||
+        'If you experience severe or worsening symptoms, unusual reactions, or any concerns that worry you, please reach out to us or your GP immediately. Your safety is our highest priority.',
+      fontSize: 9,
+      color: PDF_COLORS.alertRed,
+      margin: [0, 0, 0, 20] as [number, number, number, number],
+    }
+  );
+
+  // Prognosis (condicional)
+  if (data.clinical.prognosis) {
+    content.push(
+      {
+        text: 'Looking Ahead',
+        fontSize: 13,
+        bold: true,
+        color: PDF_COLORS.jadeDark,
+        margin: [0, 0, 0, 8] as [number, number, number, number],
+      },
+      {
+        text: data.clinical.prognosis,
+        margin: [0, 0, 0, 20] as [number, number, number, number],
+      }
+    );
+  }
+
+  // Línea decorativa final
+  content.push(
+    {
+      canvas: [
+        {
+          type: 'line',
+          x1: 0, y1: 0,
+          x2: 495, y2: 0,
+          lineWidth: 1,
+          lineColor: PDF_COLORS.gold,
+        },
+      ],
+      margin: [0, 10, 0, 15] as [number, number, number, number],
+    }
+  );
+
+  // Despedida
+  content.push(
+    {
+      text: `With care and dedication,`,
+      margin: [0, 10, 0, 4] as [number, number, number, number],
+    },
+    {
+      text: data.practitioner.name || 'Your Practitioner',
+      bold: true,
+      color: PDF_COLORS.jadeDark,
+      fontSize: 11,
+    },
+    {
+      text: data.practitioner.qualification || '',
+      fontSize: 9,
+      color: '#666',
+    },
+    {
+      text: data.practitioner.clinic || '',
+      fontSize: 9,
+      color: '#666',
+    },
+    {
+      text: data.practitioner.phone ? `Phone: ${data.practitioner.phone}` : '',
+      fontSize: 9,
+      color: '#666',
+      margin: [0, 0, 0, 20] as [number, number, number, number],
+    }
+  );
+
+  // Disclaimer
+  content.push({
+    text: [
+      'This document is a supportive care summary, not a substitute for professional medical advice. ',
+      'Always consult your GP or specialist for acute or serious conditions. ',
+      'Herbal medicine details are managed separately under TGA guidelines and are not included in this summary. ',
+      'Your clinical record is stored securely under Australian privacy law.',
+    ],
+    fontSize: 7,
+    color: '#999',
+    italics: true,
+    alignment: 'center',
+  });
+
+  const docDefinition: TDocumentDefinitions = {
+    pageSize: 'A4',
+    pageMargins: [50, 50, 50, 50] as [number, number, number, number],
+    defaultStyle: {
+      font: 'NotoSans',
+      fontSize: 10,
+      color: '#2c3e50',
+      lineHeight: 1.5,
+    },
+
+    content,
+  };
+
+  // pdfmake v0.3.x: getBlob() devuelve Promise<Blob>
+  const pdfDocGenerator = pdfMake.createPdf(docDefinition);
+  return pdfDocGenerator.getBlob();
+}

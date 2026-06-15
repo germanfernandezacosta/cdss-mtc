@@ -1,7 +1,9 @@
 // src/lib/privacy/deidentify.ts
-// Anonimización de datos de paciente — v1.0-local
-// Ejecuta ANTES de enviar a cualquier API externa (OpenRouter, Azure, etc.)
-// Cumple principios de Privacy by Design para TGA Australia / APPs
+// Anonimización de datos de paciente — v3.0
+// Hash determinista: SHA-256(nombre|DOB|patientId|email)
+// patientId es NULLABLE: si es null, no se incluye en el hash
+// Esto permite que pacientes sin ID tengan consultas independientes
+// y al asignarles ID, se vinculen automáticamente al historial
 
 import { createHash } from 'crypto';
 
@@ -30,22 +32,16 @@ export interface AnonymizedPatient {
 
 // Regex para detectar PII en texto libre
 const PII_PATTERNS = [
-  { regex: /\b[A-Z][a-z]+ [A-Z][a-z]+(?: [A-Z][a-z]+)?\b/g, replacement: '[NOMBRE]' },      // Nombres propios
-  { regex: /\b\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4}\b/g, replacement: '[FECHA]' },     // Fechas
-  { regex: /\b\d{2,4}[\/\-\.]\d{1,2}[\/\-\.]\d{1,2}\b/g, replacement: '[FECHA]' },     // Fechas ISO-like
-  { regex: /\b\d{9,15}\b/g, replacement: '[TELEFONO]' },                                    // Teléfonos
-  { regex: /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/g, replacement: '[EMAIL]' }, // Emails
-  { regex: /\b\d{1,5}\s+[^\n]{10,50}\b/g, replacement: '[DIRECCION]' },                    // Direcciones simples
+  { regex: /\b[A-Z][a-z]+ [A-Z][a-z]+(?: [A-Z][a-z]+)?\b/g, replacement: '[NOMBRE]' },
+  { regex: /\b\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4}\b/g, replacement: '[FECHA]' },
+  { regex: /\b\d{2,4}[\/\-\.]\d{1,2}[\/\-\.]\d{1,2}\b/g, replacement: '[FECHA]' },
+  { regex: /\b\d{9,15}\b/g, replacement: '[TELEFONO]' },
+  { regex: /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/g, replacement: '[EMAIL]' },
+  { regex: /\b\d{1,5}\s+[^\n]{10,50}\b/g, replacement: '[DIRECCION]' },
 ];
 
-/**
- * Elimina PII de texto libre usando regex.
- * NOTA: Para producción TGA, considerar integrar Microsoft Presidio
- * o Azure Cognitive Services (cuando esté en australiaeast).
- */
 function sanitizeFreeText(text: string): string {
   if (!text) return '';
-
   let cleaned = text;
   for (const pattern of PII_PATTERNS) {
     cleaned = cleaned.replace(pattern.regex, pattern.replacement);
@@ -53,9 +49,6 @@ function sanitizeFreeText(text: string): string {
   return cleaned;
 }
 
-/**
- * Extrae género del texto si está explícito.
- */
 function extractGender(text: string): string | undefined {
   const lower = text.toLowerCase();
   if (lower.includes('femenino') || lower.includes('mujer') || lower.includes('female')) return 'F';
@@ -63,10 +56,6 @@ function extractGender(text: string): string | undefined {
   return undefined;
 }
 
-/**
- * Calcula rango de edad a partir de fecha de nacimiento.
- * Generaliza para reducir identificabilidad.
- */
 function getAgeRange(dob: string): string {
   try {
     const birth = new Date(dob);
@@ -80,11 +69,13 @@ function getAgeRange(dob: string): string {
 }
 
 /**
- * Genera hash irreversible del paciente para trazabilidad interna.
- * Truncado a 16 chars para no exponer hash completo.
+ * Genera hash determinista del paciente.
+ * Si patientId existe, se incluye en el payload → hash vinculado a historial.
+ * Si patientId es null/undefined, se omite → hash independiente (primera vez).
  */
-function generatePatientHash(data: PatientPII): string {
-  const payload = `${data.name.trim().toLowerCase()}|${data.dob}|${(data.email || '').toLowerCase()}`;
+function generatePatientHash(data: PatientPII, patientId?: string | null): string {
+  const idPart = patientId ? `|${patientId.trim().toLowerCase()}` : '';
+  const payload = `${data.name.trim().toLowerCase()}|${data.dob}${idPart}|${(data.email || '').toLowerCase()}`;
   return createHash('sha256')
     .update(payload)
     .digest('hex')
@@ -92,54 +83,43 @@ function generatePatientHash(data: PatientPII): string {
 }
 
 /**
- * ANONIMIZACIÓN PRINCIPAL.
- * Ejecutar ESTO antes de cualquier llamada a API externa.
+ * Recalcula el hash cuando se añade/modifica patientId.
+ * Usado cuando el terapeuta asigna un ID post-consulta.
  */
-export function deidentifyPatient(data: PatientPII): AnonymizedPatient {
+export function recalculateHash(
+  name: string,
+  dob: string,
+  email: string | undefined,
+  patientId: string | null
+): string {
+  return generatePatientHash({ name, dob, email, symptoms: '' }, patientId);
+}
+
+export function auditAnonymization(data: AnonymizedPatient): { clean: boolean; findings: string[] } {
+  const findings: string[] = [];
+  const textToCheck = data.symptoms + ' ' + data.medicalHistory;
+  if (/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}/.test(textToCheck)) findings.push('Email detectado');
+  if (/\b\d{9,15}\b/.test(textToCheck)) findings.push('Teléfono detectado');
+  if (/\b\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}\b/.test(textToCheck)) findings.push('Fecha exacta detectada');
+  return { clean: findings.length === 0, findings };
+}
+
+export function deidentifyPatient(data: PatientPII, patientId?: string | null): AnonymizedPatient {
   const removed: string[] = ['name', 'dob'];
   if (data.email) removed.push('email');
   if (data.phone) removed.push('phone');
   if (data.address) removed.push('address');
 
   return {
-    patientHash: generatePatientHash(data),
+    patientHash: generatePatientHash(data, patientId),
     ageRange: getAgeRange(data.dob),
     gender: extractGender(data.symptoms + ' ' + (data.medicalHistory || '')),
     symptoms: sanitizeFreeText(data.symptoms),
     medicalHistory: sanitizeFreeText(data.medicalHistory || ''),
     metadata: {
       originalKeysRemoved: removed,
-      anonymizationVersion: 'v1.0-local',
+      anonymizationVersion: 'v3.0-patientId-nullable',
       timestamp: new Date().toISOString()
     }
   };
 }
-
-/**
- * Verificación rápida: ¿quedó algún PII obvio?
- * Útil para tests y auditoría.
- */
-export function auditAnonymization(data: AnonymizedPatient): { clean: boolean; findings: string[] } {
-  const findings: string[] = [];
-  const textToCheck = data.symptoms + ' ' + data.medicalHistory;
-
-  // Revisar si quedaron emails
-  if (/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}/.test(textToCheck)) {
-    findings.push('Email detectado en texto libre');
-  }
-  // Revisar si quedaron teléfonos
-  if (/\b\d{9,15}\b/.test(textToCheck)) {
-    findings.push('Número telefónico detectado');
-  }
-  // Revisar fechas exactas
-  if (/\b\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}\b/.test(textToCheck)) {
-    findings.push('Fecha exacta detectada');
-  }
-
-  return {
-    clean: findings.length === 0,
-    findings
-  };
-}
-
-export default deidentifyPatient;

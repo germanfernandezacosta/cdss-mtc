@@ -1,0 +1,1 @@
+ALTER TABLE `consultations` ADD `practitioner_logo_url` text;

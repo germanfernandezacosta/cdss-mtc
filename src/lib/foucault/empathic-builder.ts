@@ -1,10 +1,78 @@
+import { EmpathicPdfData } from '../pdf-generators/empathic-pdf';
 import { FoucaultInput, AHPRAFlag } from './types';
 import { scanTextForAHPRA, sanitizeForAHPRA } from './ahpra-filter';
 
 /**
- * Construye el PDF empático para el paciente.
+ * Construye el objeto plano EmpathicPdfData para pdfmake.
  * AHPRA-safe: nunca crea expectativas irrazonables de beneficio.
  * Usa lenguaje condicional y tradicional, nunca declarativo.
+ * NO incluye fitoterapia (Bug #5 resuelto).
+ */
+export function buildEmpathicData(input: FoucaultInput): EmpathicPdfData {
+  const { patient, clinicalInput, fukuokaResult, kantResult, generatedAt } = input;
+  const syndrome = fukuokaResult.data.syndrome_analysis[0];
+  const proposal = fukuokaResult.data.treatment_proposal;
+
+  const normalizedKantStatus = String(kantResult.verdict).toUpperCase();
+  const isKantRed = normalizedKantStatus === 'ROJO' || normalizedKantStatus === 'RED';
+  const isKantYellow = normalizedKantStatus === 'AMARILLO' || normalizedKantStatus === 'YELLOW';
+
+  // ─── Construir narrative empático ───
+  let empathicNarrative = '';
+
+  if (isKantRed) {
+    empathicNarrative = `Nuestro sistema de seguridad clínica ha detectado que algunos elementos de tu plan inicial requieren ajustes importantes antes de poder continuar. Esto es una medida de protección estándar. Tu terapeuta revisará contigo los detalles seguros y personalizados en tu próxima consulta. No te preocupes: este tipo de revisión es habitual y garantiza que todo lo que hagamos sea apropiado para ti en este momento.`;
+  } else if (isKantYellow) {
+    empathicNarrative = `Hemos preparado una propuesta inicial, pero tu terapeuta realizará algunas verificaciones adicionales antes de comenzar. Esto nos permite adaptar todo con la máxima precisión a tu situación actual.`;
+  } else {
+    empathicNarrative = `Gracias por confiar en nosotros con tu cuidado hoy. Hemos tomado tiempo para entender tu patrón único y hemos preparado un plan suave para apoyar la curación natural de tu cuerpo. Recuerda: la curación es un viaje, no una carrera. Cada pequeño paso cuenta.`;
+
+    if (proposal.acupuncture_points && proposal.acupuncture_points.length > 0) {
+      empathicNarrative += ` Hoy usamos puntos cuidadosamente seleccionados para ayudar a tu cuerpo a encontrar su equilibrio. Tu tratamiento fue adaptado específicamente a tus necesidades individuales y tu patrón.`;
+    }
+  }
+
+  // ─── Home Care Guide ───
+  const homeCareInstructions = `• Descansa bien después del tratamiento — tu cuerpo está procesando el trabajo que hicimos hoy.
+• Mantente abrigado y evita corrientes de aire frío, especialmente sobre las áreas tratadas.
+• Bebe agua tibia durante el día para apoyar tu sistema.
+• Si notas cualquier molestia inusual, por favor contáctanos inmediatamente.
+• Mantén un diario simple de cómo te sientes — esto nos ayuda a refinar tu cuidado.`;
+
+  // ─── Red Flags ───
+  const redFlags = `Si experimentas síntomas severos o empeorantes, reacciones inusuales, o cualquier preocupación que te inquiete, por favor comunícate con nosotros o con tu médico de cabecera inmediatamente. Tu seguridad es nuestra máxima prioridad.`;
+
+  // ─── Follow-up Plan ───
+  const followUpPlan = isKantRed
+    ? `Tu terapeuta te explicará los ajustes de seguridad en persona. Se reprogramará una nueva propuesta adaptada a ti.`
+    : `Recomendamos programar tu próxima visita para continuar construyendo sobre la base de hoy. La consistencia es clave para un cambio duradero. Por favor reserva a tu mayor conveniencia.`;
+
+    return {
+    patient: {
+      name: (patient as any).name || 'Paciente',
+      preferredName: (patient as any).preferredName || (patient as any).name || 'Paciente',
+      age: patient.age,
+      gender: patient.sex,
+    },
+    session: {
+      date: new Date(generatedAt).toISOString(),
+    },
+    practitioner: {
+      name: undefined,
+      qualification: undefined,
+      clinic: undefined,
+      phone: undefined,
+    },
+    sectionC: `${empathicNarrative}\n\nCUIDADOS EN CASA\n${homeCareInstructions}\n\nSEGUIMIENTO\n${followUpPlan}\n\nSEÑALES DE ALERTA\n${redFlags}`,
+    hasEvolution: false,
+    previousSyndrome: null,
+  };
+}
+
+
+/**
+ * LEGACY: Construye el HTML empático para el paciente.
+ * @deprecated Usar buildEmpathicData + generateEmpathicPDF en su lugar.
  */
 export function buildEmpathicHtml(input: FoucaultInput): { html: string; flags: AHPRAFlag[] } {
   const { clinicalInput, fukuokaResult, kantResult, generatedAt } = input;
@@ -40,15 +108,13 @@ export function buildEmpathicHtml(input: FoucaultInput): { html: string; flags: 
     // ─── Tratamiento (AHPRA-safe: condicional, nunca declarativo) ───
     empathicText += '\n\nBasandonos en nuestro analisis, hemos preparado un plan personalizado que incluye acupuntura y, si es apropiado, apoyo herbal. ';
 
-    // Puntos: lenguaje condicional
     if (proposal.acupuncture_points && proposal.acupuncture_points.length > 0) {
       empathicText += 'Los puntos seleccionados se utilizan tradicionalmente para apoyar el equilibrio energetico y pueden ayudar a mejorar tu bienestar general. ';
     }
 
-    // Hierbas: solo mencionar nombre, NUNCA dosis ni claims de eficacia
     if (proposal.herbal_formula) {
-      empathicText += 'La formula ' + proposal.herbal_formula + ' se utiliza en la tradicion de la Medicina China para apoyar la funcion digestiva y el descanso. ';
-      empathicText += 'Tu terapeuta registrado te explicara los detalles si considera que es apropiado para tu caso. ';
+      empathicText += 'Se ha considerado un apoyo herbal personalizado basado en tu patron tradicional. ';
+      empathicText += 'Tu terapeuta te explicara los detalles en la consulta si considera que es apropiado para tu caso. ';
     }
   }
 

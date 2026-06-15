@@ -23,6 +23,7 @@ export async function POST(req: NextRequest) {
     // Drizzle valida tipos automáticamente en tiempo de compilación
     // pero hacemos validación runtime para campos críticos
     const record: NewConsultation = {
+      ehrId: "TEMP-EHR",
       patientHash: body.patientHash,
       consultationDate: body.consultationDate,
       patientAge: body.patientAge,

@@ -287,12 +287,16 @@ export class KantEngine {
     if (!this.ahpraRules?.scopeOfPractice?.mandatoryReferral?.conditions) return;
 
     const conditions = this.ahpraRules.scopeOfPractice.mandatoryReferral.conditions;
-    const symptomsLower = (patient.knownAllergies?.join(" ") || "").toLowerCase();
+    const searchText = (
+  (patient.knownAllergies?.join(" ") || "") + " " +
+  (patient.medicalHistory || "") + " " +
+  (patient.currentPharmaceuticals?.join(" ") || "")
+).toLowerCase();
 
     for (const condition of conditions) {
       const conditionLower = condition.condition.toLowerCase();
       // Match si el historial médico contiene la condición
-      if (symptomsLower.includes(conditionLower)) {
+      if (searchText.includes(conditionLower)) {
         alerts.push({
           code: `AHPRA-REF-${condition.condition.substring(0, 3).toUpperCase()}`,
           category: "ahpraReferral",
@@ -700,40 +704,56 @@ export class KantEngine {
   // ═══════════════════════════════════════════════════════════════
 
   private calculateScore(
-    contraindications: SafetyContraindication[],
-    alerts: SafetyAlert[]
-  ): number {
-    const severityWeights: Record<SafetySeverity, number> = {
-      low: 5,
-      moderate: 15,
-      high: 35,
-      absolute: 60,
-    };
+  contraindications: SafetyContraindication[],
+  alerts: SafetyAlert[]
+): number {
+  const severityWeights: Record<SafetySeverity, number> = {
+    low: 5,
+    moderate: 15,
+    high: 35,
+    absolute: 60,
+  };
 
-    let total = 0;
-    for (const c of contraindications) {
-      total += severityWeights[c.severity] || 0;
-    }
-    for (const a of alerts) {
-      const multiplier = a.category === "device" || a.category === "pediatric" || a.category === "anticoagulant" ? 0.75 : 0.5;
-      total += (severityWeights[a.severity] || 0) * multiplier;
-    }
+  let score = 100;
 
-    return Math.min(100, total);
+  // Restar por contraindicaciones (penalización fuerte)
+  for (const c of contraindications) {
+    score -= severityWeights[c.severity] || 0;
   }
+
+  // Restar por alerts (penalización moderada según categoría)
+  for (const a of alerts) {
+    // Categorías manejables: penalización reducida
+    const isManageable = a.category === "device" || 
+                         a.category === "pediatric" || 
+                         a.category === "anticoagulant" ||
+                         a.category === "epilepsy";
+    const multiplier = isManageable ? 0.5 : 0.75;
+    score -= (severityWeights[a.severity] || 0) * multiplier;
+  }
+
+  return Math.max(0, Math.min(100, score));
+}
 
   private determineStatus(
-    score: number,
-    contraindications: SafetyContraindication[],
-    alerts: SafetyAlert[]
-  ): KantStatus {
-    if (contraindications.some((c) => c.severity === "absolute")) {
-      return "red";
-    }
-    if (score >= 50) return "red";
-    if (score >= 10) return "yellow";
-    return "green";
+  score: number,
+  contraindications: SafetyContraindication[],
+  alerts: SafetyAlert[]
+): KantStatus {
+  // Contraindicación absoluta = ROJO siempre
+  if (contraindications.some((c) => c.severity === "absolute")) {
+    return "red";
   }
+
+  // Score bajo = ROJO (muchos riesgos acumulados)
+  if (score < 30) return "red";
+  
+  // Score medio-bajo = YELLOW (precauciones necesarias)
+  if (score < 70) return "yellow";
+  
+  // Score alto = VERDE (seguro o riesgos manejables)
+  return "green";
+}
 }
 
 export function evaluateSafety(

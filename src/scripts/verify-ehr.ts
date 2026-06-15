@@ -35,6 +35,7 @@ async function main() {
   // 3. Insertar consulta de prueba (transacción ACID)
   log("3/7", "Insertando consulta de prueba (transacción ACID)...");
   const testConsultation: NewConsultation = {
+  ehrId: "TEST-EHR-001",
     patientHash: "test_sha256_abc123def4567890",
     consultationDate: new Date().toISOString(),
     patientAge: 45,
@@ -84,16 +85,16 @@ async function main() {
 
   // 5. Recuperar por patientHash
   log("5/7", "Recuperando historial por patientHash...");
-  const history = getConsultationsByPatient({ patientHash: testConsultation.patientHash });
+  const history = getConsultationsByPatient(testConsultation.patientHash);
   log("5/7", `✅ ${history.length} consulta(s) encontrada(s)`);
 
   // 6. Estadísticas con agregaciones SQL
   log("6/7", "Calculando estadísticas del paciente (agregaciones SQL)...");
   const stats = getPatientStats(testConsultation.patientHash);
   log("6/7", `✅ Total consultas: ${stats.totalConsultations}`);
-  log("6/7", `   → Green: ${stats.kantStatusDistribution.green}`);
-  log("6/7", `   → Yellow: ${stats.kantStatusDistribution.yellow}`);
-  log("6/7", `   → Red: ${stats.kantStatusDistribution.red}`);
+  log("6/7", `   → Green: ${stats.kantStatusDistribution?.green || 0}`);
+  log("6/7", `   → Yellow: ${stats.kantStatusDistribution?.yellow || 0}`);
+  log("6/7", `   → Red: ${stats.kantStatusDistribution?.red || 0}`);
   log("6/7", `   → Última consulta: ${stats.lastConsultationDate}`);
 
   // 7. Verificar columnas del schema

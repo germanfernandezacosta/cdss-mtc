@@ -7,6 +7,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
+    "test": "vitest",
+    "test:ui": "vitest --ui",
+    "test:coverage": "vitest --coverage",
     "rag:ingest:regulatory": "tsx src/scripts/ingest-regulatory.ts"
   },
   "dependencies": {
@@ -15,10 +18,13 @@
     "autoprefixer": "^10.5.0",
     "better-sqlite3": "^12.10.0",
     "drizzle-orm": "^0.45.2",
+    "html2canvas": "^1.4.1",
+    "jspdf": "^4.2.1",
+    "jspdf-autotable": "^5.0.8",
     "next": "14.2.35",
     "pdf-parse": "^1.1.1",
     "pdfkit": "^0.18.0",
-    "pdfmake": "^0.3.8",
+    "pdfmake": "^0.3.9",
     "react": "^18",
     "react-dom": "^18",
     "sqlite-vec": "^0.1.9",
@@ -26,17 +32,23 @@
     "tiktoken": "^1.0.22"
   },
   "devDependencies": {
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
     "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^20",
     "@types/pdf-parse": "^1.1.5",
     "@types/react": "^18",
     "@types/react-dom": "^18",
+    "@vitejs/plugin-react": "^6.0.2",
+    "@vitest/ui": "^4.1.9",
     "drizzle-kit": "^0.31.10",
     "eslint": "^8",
     "eslint-config-next": "14.2.35",
+    "jsdom": "^29.1.1",
     "postcss": "^8",
     "tailwindcss": "^3.4.1",
     "tsx": "^4.22.3",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^4.1.9"
   }
 }

@@ -36,8 +36,8 @@ export function saveFoucaultPDFs(
   forensicHash: string,
   empathicHash: string
 ): PdfSaveResult {
-  const forensicPath = generatePdfPath(patientHash, "forensic", timestamp);
-  const empathicPath = generatePdfPath(patientHash, "empathic", timestamp);
+  const forensicPath = generatePdfPath(patientHash, "forensic");
+  const empathicPath = generatePdfPath(patientHash, "empathic");
 
   ensureDirectoryExists(forensicPath);
   ensureDirectoryExists(empathicPath);

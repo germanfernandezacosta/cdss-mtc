@@ -25,7 +25,8 @@ export interface PatientSafetyProfile {
   age?: number;
   knownAllergies?: string[];
   currentPharmaceuticals?: string[];  // Todos los fármacos activos
-  currentHerbs?: string[];          // Hierbas que ya está tomando
+  currentHerbs?: string[];
+  medicalHistory?: string;          // Hierbas que ya está tomando
 }
 
 export interface SafetyAlert {

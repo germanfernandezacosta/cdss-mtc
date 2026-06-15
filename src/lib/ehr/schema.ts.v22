@@ -1,0 +1,314 @@
+/**
+ * EHR Schema — Drizzle ORM
+ * CDSS MTC Premium v2.2
+ * SQLite estricto con integridad referencial + transacciones ACID
+ * NUEVO v2.2: Campos clínicos MTC completos (舌/脉/良導絡/腹诊),
+ *              tratamiento con reglas cerradas, consentimiento,
+ *              metadatos forenses, y datos del practitioner (Opción A)
+ */
+
+import { sqliteTable, integer, text, real, index, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { sql } from "drizzle-orm";
+
+// ═══════════════════════════════════════════════════════════════
+// TABLA PRINCIPAL: consultations
+// ═══════════════════════════════════════════════════════════════
+
+export const consultations = sqliteTable("consultations", {
+  id: integer("id", { mode: "number" }).primaryKey({ autoIncrement: true }),
+
+  // ─── Identificación anónima ─────────────────────────────────
+  patientHash: text("patient_hash", { length: 64 }).notNull(),
+
+  // ─── Metadata temporal ──────────────────────────────────────
+  consultationDate: text("consultation_date", { length: 30 }).notNull(),
+  createdAt: text("created_at", { length: 30 }).default(sql`(datetime('now'))`),
+
+  // ─── i18n ───────────────────────────────────────────────────
+  language: text("language", { length: 10 }).notNull().default("es"),
+  // es | en-AU
+
+  // ─── Datos demográficos (anonimizados) ─────────────────────
+  patientAge: integer("patient_age"),
+  patientGender: text("patient_gender", { length: 10 }),
+
+  // ─── Entrada clínica ──────────────────────────────────────
+  symptoms: text("symptoms").notNull(),
+  diagnosis: text("diagnosis"),
+
+  // ─── Resultado Fukuoka-H (diagnóstico MTC) ────────────────
+  syndrome: text("syndrome").notNull(),
+  points: text("points", { mode: "json" }).$type<Array<{
+    name: string;
+    location: string;
+    indication: string;
+  }>>(),
+  herbs: text("herbs", { mode: "json" }).$type<Array<{
+    name: string;
+    dose: string;
+    preparation: string;
+  }>>(),
+  rationale: text("rationale"),
+
+  // ─── Resultado KANT v2.2 (seguridad) ──────────────────────
+  kantStatus: text("kant_status", { length: 10 }).notNull(), // green | yellow | red
+  kantScore: integer("kant_score").notNull().default(0),       // 0-100
+  kantAlerts: text("kant_alerts", { mode: "json" }).$type<Array<{
+    code: string;
+    category: string;
+    severity: "low" | "moderate" | "high" | "absolute";
+    message: string;
+    sourceRule: string;
+    recommendation: string;
+    affectedItems?: string[];
+  }>>(),
+  kantContraindications: text("kant_contraindications", { mode: "json" }).$type<Array<{
+    item: string;
+    type: "point" | "herb" | "technique" | "drug" | "device";
+    reason: string;
+    severity: "low" | "moderate" | "high" | "absolute";
+    alternative?: string;
+  }>>(),
+  kantAuditTrail: text("kant_audit_trail", { mode: "json" }).$type<string[]>(),
+
+  // ─── Citaciones RAG ───────────────────────────────────────
+  ragCitations: text("rag_citations", { mode: "json" }).$type<Array<{
+    document: string;
+    documentId: string;
+    pageStart: number;
+    pageEnd: number;
+    excerpt: string;
+  }>>(),
+
+  // ─── Metadata LLM ───────────────────────────────────────────
+  llmModel: text("llm_model", { length: 50 }).notNull(),
+
+  // ─── Foucault PDF (rutas en disco) ─────────────────────────
+  foucaultPdfPath: text("foucault_pdf_path"),
+  foucaultForensicHash: text("foucault_forensic_hash", { length: 64 }),
+  foucaultEmpathicHash: text("foucault_empathic_hash", { length: 64 }),
+
+  // ─── Regulatorio ────────────────────────────────────────────
+  regulatoryFramework: text("regulatory_framework", { length: 20 }).default("AHPRA"),
+  // AHPRA | TGA | RGPD
+  isTest: integer("is_test", { mode: "boolean" }).default(false),
+  // true = datos de prueba (borrables)
+
+  // ─── Audit trail regulatorio ────────────────────────────────
+  ahpraFlags: text("ahpra_flags", { mode: "json" }).$type<Array<{
+    ruleId: string;
+    term: string;
+    severity: string;
+  }>>(),
+  chainOfCustody: text("chain_of_custody", { mode: "json" }).$type<string[]>(),
+
+  // ═══════════════════════════════════════════════════════════
+  // NUEVO v2.2: Datos del Practitioner (Opción A — inline)
+  // Se guardan en cada consulta para evitar joins y simplificar
+  // ═══════════════════════════════════════════════════════════
+  practitionerName: text("practitioner_name"),
+  practitionerRegistration: text("practitioner_registration"), // AHPRA reg
+  practitionerQualification: text("practitioner_qualification"),
+  practitionerClinic: text("practitioner_clinic"),
+  practitionerAddress: text("practitioner_address"),
+  practitionerPhone: text("practitioner_phone"),
+  practitionerLogoUrl: text("practitioner_logo_url"),
+
+  // ═══════════════════════════════════════════════════════════
+  // NUEVO v2.2: Examen físico MTC (舌/脉/腹/良導絡)
+  // ═══════════════════════════════════════════════════════════
+  // ─── Observación (望诊) ───────────────────────────────────
+  complexion: text("complexion"),           // 面色
+  spirit: text("spirit"),                   // 神
+  bodyShape: text("body_shape"),            // 形体
+  posture: text("posture"),                 // 姿态
+  skinCondition: text("skin_condition"),    // 皮肤
+  hairCondition: text("hair_condition"),  // 头发
+  eyes: text("eyes"),                       // 目
+  nails: text("nails"),                     // 爪甲
+
+  // ─── Lengua (舌诊) ────────────────────────────────────────
+  tongueBodyColor: text("tongue_body_color"),
+  tongueBodyShape: text("tongue_body_shape"),
+  tongueCoatingColor: text("tongue_coating_color"),
+  tongueCoatingThickness: text("tongue_coating_thickness"),
+  tongueCoatingDistribution: text("tongue_coating_distribution"),
+  tongueMoisture: text("tongue_moisture"),
+  tongueSublingualVeins: text("tongue_sublingual_veins"),
+  tongueNotes: text("tongue_notes"),
+
+  // ─── Pulso (脉诊) ───────────────────────────────────────────
+  pulseLeftCun: text("pulse_left_cun"),       // 左寸
+  pulseLeftGuan: text("pulse_left_guan"),     // 左关
+  pulseLeftChi: text("pulse_left_chi"),       // 左尺
+  pulseRightCun: text("pulse_right_cun"),     // 右寸
+  pulseRightGuan: text("pulse_right_guan"),   // 右关
+  pulseRightChi: text("pulse_right_chi"),       // 右尺
+  pulseDepth: text("pulse_depth"),            // 浮/沉/中
+  pulseRate: text("pulse_rate"),              // 迟/数/缓/疾
+  pulseRhythm: text("pulse_rhythm"),          // 节律
+  pulseQuality: text("pulse_quality"),        // 流利度/紧张度
+  pulseOverall: text("pulse_overall"),        // 脉象总体
+  pulseNotes: text("pulse_notes"),
+
+  // ─── Ryodoraku (良導絡) ───────────────────────────────────
+  ryodorakuLung: integer("ryodoraku_lung"),               // 肺
+  ryodorakuPericardium: integer("ryodoraku_pericardium"), // 心包
+  ryodorakuHeart: integer("ryodoraku_heart"),             // 心
+  ryodorakuSmallIntestine: integer("ryodoraku_small_intestine"), // 小肠
+  ryodorakuTripleWarmer: integer("ryodoraku_triple_warmer"),     // 三焦
+  ryodorakuLargeIntestine: integer("ryodoraku_large_intestine"), // 大肠
+  ryodorakuSpleen: integer("ryodoraku_spleen"),           // 脾
+  ryodorakuLiver: integer("ryodoraku_liver"),             // 肝
+  ryodorakuKidney: integer("ryodoraku_kidney"),           // 肾
+  ryodorakuBladder: integer("ryodoraku_bladder"),         // 膀胱
+  ryodorakuStomach: integer("ryodoraku_stomach"),         // 胃
+  ryodorakuGallbladder: integer("ryodoraku_gallbladder"), // 胆
+  ryodorakuNotes: text("ryodoraku_notes"),
+
+  // ─── Palpación Abdominal (腹诊) ───────────────────────────
+  abdomenOverall: text("abdomen_overall"),      // 腹象总体
+  abdomenSho: text("abdomen_sho"),              // 证型腹诊
+  abdomenTenderness: text("abdomen_tenderness"), // 压痛
+  abdomenTension: text("abdomen_tension"),       // 紧张度
+  abdomenTemperature: text("abdomen_temperature"), // 温度
+  abdomenWaterSound: text("abdomen_water_sound"), // 水声
+  abdomenNotes: text("abdomen_notes"),
+
+  // ═══════════════════════════════════════════════════════════
+  // NUEVO v2.2: Diagnóstico MTC extendido
+  // ═══════════════════════════════════════════════════════════
+  bianZheng: text("bian_zheng"),              // 辨证
+  zangFuPattern: text("zang_fu_pattern"),       // 脏腑辨证
+  baGang: text("ba_gang"),                    // 八纲
+  qiBloodFluid: text("qi_blood_fluid"),       // 气血津液
+  channelPattern: text("channel_pattern"),      // 经络辨证
+  diseaseMechanism: text("disease_mechanism"),   // 病机
+  westernDiagnosis: text("western_diagnosis"), // 西医诊断 (referencia)
+
+  // ═══════════════════════════════════════════════════════════
+  // NUEVO v2.2: Tratamiento con reglas cerradas
+  // ═══════════════════════════════════════════════════════════
+  treatmentPrinciple: text("treatment_principle"), // 治则
+  treatmentMethod: text("treatment_method"),       // 治法
+
+  // Acupuntura — ejecución detallada
+  pointsExecution: text("points_execution", { mode: "json" }).$type<Array<{
+    point: string;
+    location: string;
+    technique: string;
+    depth: string;
+    manipulation: string;
+    duration: string;
+    notes?: string;
+  }>>(),
+  acupunctureNeedleType: text("acupuncture_needle_type"),   // 0.16x25mm, etc.
+  acupunctureNeedleCount: integer("acupuncture_needle_count"),
+  acupunctureDuration: text("acupuncture_duration"),        // 20min, 30min
+  acupunctureFrequency: text("acupuncture_frequency"),        // 1x/semana
+  acupunctureTotalSessions: integer("acupuncture_total_sessions"),
+  acupunctureSequence: text("acupuncture_sequence"),        // Orden de punción
+  acupunctureDeqi: text("acupuncture_deqi"),                  // 得气
+  acupunctureNotes: text("acupuncture_notes"),
+
+  // Moxibustión
+  moxibustionType: text("moxibustion_type"),                  // 直接灸, 间接灸...
+  moxibustionPoints: text("moxibustion_points"),
+  moxibustionDuration: text("moxibustion_duration"),
+  moxibustionFrequency: text("moxibustion_frequency"),
+  moxibustionContraindications: text("moxibustion_contraindications"),
+
+  // Ventosas (Cupping)
+  cuppingType: text("cupping_type"),                          // 留罐, 走罐...
+  cuppingLocation: text("cupping_location"),
+  cuppingDuration: text("cupping_duration"),
+  cuppingFrequency: text("cupping_frequency"),
+  cuppingNotes: text("cupping_notes"),
+
+  // Tuina
+  tuinaTechniques: text("tuina_techniques"),                    // JSON: [{technique, area, duration, intensity}]
+  tuinaDuration: text("tuina_duration"),
+  tuinaFrequency: text("tuina_frequency"),
+  tuinaContraindications: text("tuina_contraindications"),
+
+  // Dietética (食疗)
+  dietaryAdvice: text("dietary_advice"),                        // JSON: [{food, property, indication, preparation, frequency}]
+  dietaryAvoid: text("dietary_avoid"),                          // 忌口
+  dietaryConstitution: text("dietary_constitution"),            // 体质食疗
+
+  // Ejercicios (导引)
+  exerciseType: text("exercise_type"),                          // 八段锦, 五禽戏...
+  exerciseRoutine: text("exercise_routine"),                    // JSON: [{exercise, duration, frequency, notes}]
+  exerciseContraindications: text("exercise_contraindications"),
+
+  // Fitoterapia (中药) — TGA/AHPRA compliant
+  herbalFormula: text("herbal_formula"),                         // Nombre de fórmula
+  herbalIngredients: text("herbal_ingredients", { mode: "json" }).$type<Array<{
+    herb: string;
+    dose: string;
+    unit: string;
+    preparation: string;
+    function: string;
+  }>>(),
+  herbalModifications: text("herbal_modifications"),            // 加减
+  herbalDosage: text("herbal_dosage"),                          // 剂量说明
+  herbalAdministration: text("herbal_administration"),          // 煎服法
+  herbalDuration: text("herbal_duration"),                      // 疗程
+  herbalFrequency: text("herbal_frequency"),                      // 每日剂数
+  herbalContraindications: text("herbal_contraindications"),
+  herbalTgaStatus: text("herbal_tga_status"),                   // Listed, Registered...
+  herbalAhpraWarning: text("herbal_ahpra_warning"),             // Disclaimer obligatorio
+
+  // ═══════════════════════════════════════════════════════════
+  // NUEVO v2.2: Prognosis y seguimiento
+  // ═══════════════════════════════════════════════════════════
+  prognosis: text("prognosis"),
+  followUpPlan: text("follow_up_plan"),
+  expectedOutcomes: text("expected_outcomes"),
+  redFlags: text("red_flags"),                                  // Señales de alarma
+  referralNeeded: integer("referral_needed", { mode: "boolean" }), // AHPRA Mandatory Referral
+  referralTo: text("referral_to"),
+  referralReason: text("referral_reason"),
+
+  // ═══════════════════════════════════════════════════════════
+  // NUEVO v2.2: Consentimiento informado (AHPRA)
+  // ═══════════════════════════════════════════════════════════
+  informedConsent: integer("informed_consent", { mode: "boolean" }),
+  consentDate: text("consent_date"),
+  patientSignature: text("patient_signature"),                  // Base64 o hash
+  practitionerSignature: text("practitioner_signature"),
+  riskAcknowledged: integer("risk_acknowledged", { mode: "boolean" }),
+  privacyAcknowledged: integer("privacy_acknowledged", { mode: "boolean" }),
+
+  // ═══════════════════════════════════════════════════════════
+  // NUEVO v2.2: Metadatos del sistema (forenses)
+  // ═══════════════════════════════════════════════════════════
+  foucaultVersion: text("foucault_version"),                    // v2.2
+  ragChunksUsed: text("rag_chunks_used"),                       // IDs chunks referenciados
+  openrouterModel: text("openrouter_model"),                    // GPT-4o-mini
+  generationTimestamp: text("generation_timestamp"),          // ISO string
+  empathicNarrative: text("empathic_narrative"),                // Texto generado Fukuoka↔KANT
+  homeCareInstructions: text("home_care_instructions"),         // Instrucciones para casa
+
+}, (table) => ({
+  // Índices existentes
+  patientHashIdx: index("idx_patient_hash").on(table.patientHash),
+  dateIdx: index("idx_consultation_date").on(table.consultationDate),
+  statusIdx: index("idx_kant_status").on(table.kantStatus),
+  patientDateIdx: index("idx_patient_date").on(table.patientHash, table.consultationDate),
+  testIdx: index("idx_is_test").on(table.isTest),
+  langIdx: index("idx_language").on(table.language),
+
+  // NUEVO v2.2: Índices forenses
+  forensicHashIdx: index("idx_forensic_hash").on(table.foucaultForensicHash),
+  empathicHashIdx: index("idx_empathic_hash").on(table.foucaultEmpathicHash),
+  practitionerIdx: index("idx_practitioner").on(table.practitionerRegistration),
+  referralIdx: index("idx_referral").on(table.referralNeeded),
+}));
+
+// ═══════════════════════════════════════════════════════════════
+// TIPO INFERIDO (type safety automático de Drizzle)
+// ═══════════════════════════════════════════════════════════════
+
+export type Consultation = typeof consultations.$inferSelect;
+export type NewConsultation = typeof consultations.$inferInsert;

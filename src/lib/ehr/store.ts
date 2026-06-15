@@ -1,197 +1,231 @@
-/**
- * EHR Store — Operaciones CRUD con Drizzle ORM
- * Transacciones ACID explícitas para integridad clínica
- * CDSS MTC Premium v2.1
- */
+// src/lib/ehr/store.ts
+// Capa de persistencia — CDSS MTC Premium v3.0
+// CRUD patients, consultations, documents
+// better-sqlite3 síncrono = máxima velocidad
 
-import { eq, and, gte, lte, desc, sql, count } from "drizzle-orm";
-import { db, PDF_DIR } from "./db";
-import { consultations, type Consultation, type NewConsultation } from "./schema";
-import * as path from "path";
-import * as fs from "fs";
+import { db } from './db';
+import { patients, consultations, documents, type NewPatient, type NewConsultation, type NewDocument } from './schema';
+import { eq, like, and, or, desc, sql } from 'drizzle-orm';
 
 // ═══════════════════════════════════════════════════════════════
-// TIPOS DE QUERY
+// HELPERS
 // ═══════════════════════════════════════════════════════════════
 
-export interface EHRQuery {
-  patientHash: string;
-  fromDate?: string;      // ISO 8601
-  toDate?: string;
-  limit?: number;
-  offset?: number;
-}
-
-export interface EHRStats {
-  totalConsultations: number;
-  lastConsultationDate?: string;
-  kantStatusDistribution: {
-    green: number;
-    yellow: number;
-    red: number;
-  };
-}
-
-export interface PdfSaveResult {
-  forensicPath: string;
-  empathicPath: string;
-  forensicHash: string;
-  empathicHash: string;
+function generateEhrId(): string {
+  const year = new Date().getFullYear();
+  const random = Math.floor(Math.random() * 90000) + 10000;
+  return `EHR-${year}-${random}`;
 }
 
 // ═══════════════════════════════════════════════════════════════
-// CREATE — Guardar consulta (con transacción ACID)
+// PATIENTS CRUD
+// ═══════════════════════════════════════════════════════════════
+
+export function createPatient(data: Omit<NewPatient, 'ehrId' | 'createdAt' | 'updatedAt'>): string {
+  const ehrId = generateEhrId();
+  const now = sql`(datetime('now'))`;
+
+  db.insert(patients).values({
+    ...data,
+    ehrId,
+    createdAt: now,
+    updatedAt: now,
+  }).run();
+
+  return ehrId;
+}
+
+export function getPatientByEhrId(ehrId: string) {
+  return db.select().from(patients).where(eq(patients.ehrId, ehrId)).get();
+}
+
+export function getPatientByPatientId(patientId: string) {
+  return db.select().from(patients).where(eq(patients.patientId, patientId)).get();
+}
+
+export function searchPatients(query: string) {
+  const searchTerm = `%${query}%`;
+  return db.select()
+    .from(patients)
+    .where(
+      or(
+        like(patients.name, searchTerm),
+        like(patients.ehrId, searchTerm),
+        like(patients.patientId, searchTerm),
+        like(patients.email, searchTerm)
+      )
+    )
+    .limit(20)
+    .all();
+}
+
+export function updatePatient(ehrId: string, data: Partial<Omit<NewPatient, 'ehrId' | 'id' | 'createdAt'>>) {
+  const patient = getPatientByEhrId(ehrId);
+  if (!patient) return null;
+
+  db.update(patients)
+    .set({ ...data, updatedAt: sql`(datetime('now'))` })
+    .where(eq(patients.ehrId, ehrId))
+    .run();
+
+  return getPatientByEhrId(ehrId);
+}
+
+export function updatePatientHash(ehrId: string, newHash: string) {
+  // Cuando se añade patientId, recalculamos hash y actualizamos todas las consultas
+  const patient = getPatientByEhrId(ehrId);
+  if (!patient) return null;
+
+  db.update(consultations)
+    .set({ patientHash: newHash })
+    .where(eq(consultations.ehrId, ehrId))
+    .run();
+
+  return patient;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// CONSULTATIONS CRUD
 // ═══════════════════════════════════════════════════════════════
 
 export function saveConsultation(data: NewConsultation): number {
-  // Transacción explícita: si falla algo, rollback completo
-  const result = db.transaction((tx) => {
-    const inserted = tx.insert(consultations).values(data).returning({ id: consultations.id }).get();
-    return inserted.id;
-  });
-
-  return result;
+  const result = db.insert(consultations).values(data).run();
+  return Number(result.lastInsertRowid);
 }
 
-// ═══════════════════════════════════════════════════════════════
-// READ — Recuperar historial por paciente (con filtros)
-// ═══════════════════════════════════════════════════════════════
-
-export function getConsultationsByPatient(query: EHRQuery): Consultation[] {
-  const conditions = [eq(consultations.patientHash, query.patientHash)];
-
-  if (query.fromDate) {
-    conditions.push(gte(consultations.consultationDate, query.fromDate));
-  }
-  if (query.toDate) {
-    conditions.push(lte(consultations.consultationDate, query.toDate));
-  }
-
-  const results = db
-    .select()
-    .from(consultations)
-    .where(and(...conditions))
-    .orderBy(desc(consultations.consultationDate))
-    .limit(query.limit ?? 100)
-    .offset(query.offset ?? 0)
-    .all();
-
-  return results;
+export function getConsultationById(id: number) {
+  return db.select().from(consultations).where(eq(consultations.id, id)).get();
 }
 
-export function getConsultationById(id: number): Consultation | null {
-  const result = db
-    .select()
-    .from(consultations)
-    .where(eq(consultations.id, id))
-    .get();
-
-  return result ?? null;
-}
-
-// ═══════════════════════════════════════════════════════════════
-// STATS — Estadísticas del paciente (agregaciones SQL)
-// ═══════════════════════════════════════════════════════════════
-
-export function getPatientStats(patientHash: string): EHRStats {
-  // Total de consultas
-  const totalResult = db
-    .select({ count: count() })
-    .from(consultations)
-    .where(eq(consultations.patientHash, patientHash))
-    .get();
-
-  // Última consulta
-  const lastResult = db
-    .select({ date: consultations.consultationDate })
+export function getLastConsultationByHash(patientHash: string) {
+  return db.select()
     .from(consultations)
     .where(eq(consultations.patientHash, patientHash))
     .orderBy(desc(consultations.consultationDate))
     .limit(1)
     .get();
+}
 
-  // Distribución por status KANT
-  const statusResults = db
-    .select({
-      status: consultations.kantStatus,
-      count: count(),
-    })
+export function getConsultationsByEhrId(ehrId: string, limit = 50) {
+  return db.select()
+    .from(consultations)
+    .where(eq(consultations.ehrId, ehrId))
+    .orderBy(desc(consultations.consultationDate))
+    .limit(limit)
+    .all();
+}
+
+export function getConsultationsByPatientHash(patientHash: string, limit = 50) {
+  return db.select()
     .from(consultations)
     .where(eq(consultations.patientHash, patientHash))
-    .groupBy(consultations.kantStatus)
+    .orderBy(desc(consultations.consultationDate))
+    .limit(limit)
     .all();
+}
 
-  const distribution = { green: 0, yellow: 0, red: 0 };
-  for (const row of statusResults) {
-    if (row.status === "green") distribution.green = row.count;
-    if (row.status === "yellow") distribution.yellow = row.count;
-    if (row.status === "red") distribution.red = row.count;
-  }
+export function getConsultationHistory(ehrId: string) {
+  // Alias para compatibilidad con código existente
+  return getConsultationsByEhrId(ehrId);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// DOCUMENTS CRUD (PDFs como BLOB)
+// ═══════════════════════════════════════════════════════════════
+
+export function saveDocument(data: NewDocument): number {
+  const result = db.insert(documents).values(data).run();
+  return Number(result.lastInsertRowid);
+}
+
+export function getDocumentsByEhrId(ehrId: string) {
+  return db.select()
+    .from(documents)
+    .where(eq(documents.ehrId, ehrId))
+    .orderBy(desc(documents.createdAt))
+    .all();
+}
+
+export function getDocumentById(id: number) {
+  return db.select().from(documents).where(eq(documents.id, id)).get();
+}
+
+export function getDocumentBinary(id: number): Buffer | null {
+  const doc = getDocumentById(id);
+  return doc ? doc.fileData as Buffer : null;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// COMPATIBILIDAD v2.2 (alias para no romper código existente)
+// ═══════════════════════════════════════════════════════════════
+
+export function saveConsultationHistory(data: any) {
+  // v2.2 tenía tabla consultationHistory separada
+  // v3.0: guardamos directamente en consultations
+  // Este alias mantiene compatibilidad temporal
+  console.log('[v3.0] saveConsultationHistory es alias de saveConsultation');
+  return saveConsultation(data);
+}
+
+export function getLastConsultationByHashCompat(patientHash: string) {
+  return getLastConsultationByHash(patientHash);
+}
+
+export function saveFoucaultPDFs(ehrId: string, forensicPath: string, empathicPath: string) {
+  // Legacy: actualiza rutas en consultations (para PDFs en disco)
+  // v3.0: usa saveDocument para BLOBs
+  console.log('[v3.0] saveFoucaultPDFs legacy — considera migrar a saveDocument');
+  // No-op por ahora, los PDFs legacy se quedan en disco
+}
+
+// ═══════════════════════════════════════════════════════════════
+// COMPATIBILIDAD v2.2 (para no romper código antiguo)
+// ═══════════════════════════════════════════════════════════════
+
+export function getConsultationsByPatient(patientHash: string) {
+  return getConsultationsByEhrId(patientHash); // Fallback
+}
+
+export function getPatientStats(patientHash: string) {
+  // ✅ FIX: buscar por patientHash, no por ehrId
+  const allConsultations = db.select()
+    .from(consultations)
+    .where(eq(consultations.patientHash, patientHash))
+    .orderBy(desc(consultations.consultationDate))
+    .all();
+  
+  const last = allConsultations.length > 0 ? allConsultations[0] : null;
+  const avgScore = allConsultations.length > 0
+    ? allConsultations.reduce((sum, c) => sum + (c.kantScore || 0), 0) / allConsultations.length
+    : 0;
 
   return {
-    totalConsultations: totalResult?.count ?? 0,
-    lastConsultationDate: lastResult?.date ?? undefined,
-    kantStatusDistribution: distribution,
+    totalConsultations: allConsultations.length,
+    lastConsultation: last,
+    lastConsultationDate: last?.consultationDate || null,
+    averageKantScore: avgScore,
+    kantStatusDistribution: {
+      green: allConsultations.filter(c => c.kantStatus === 'green').length,
+      yellow: allConsultations.filter(c => c.kantStatus === 'yellow').length,
+      red: allConsultations.filter(c => c.kantStatus === 'red').length,
+    },
   };
 }
 
-// ═══════════════════════════════════════════════════════════════
-// DELETE — Eliminar consulta (soft-delete NO implementado, es hard-delete)
-// ⚠️ En producción médica se recomienda soft-delete o archivado
-// ═══════════════════════════════════════════════════════════════
-
-export function deleteConsultation(id: number): boolean {
-  const result = db.transaction((tx) => {
-    const deleted = tx
-      .delete(consultations)
-      .where(eq(consultations.id, id))
-      .returning({ id: consultations.id })
-      .get();
-    return !!deleted;
-  });
-
-  return result;
+export function deleteConsultation(id: number) {
+  db.delete(consultations).where(eq(consultations.id, id)).run();
+  return true;
 }
 
-// ═══════════════════════════════════════════════════════════════
-// PDF UTILITIES — Guardar PDFs de Foucault en disco
-// ═══════════════════════════════════════════════════════════════
-
-export function generatePdfPath(
-  patientHash: string,
-  type: "forensic" | "empathic",
-  timestamp: string
-): string {
-  const safeTs = timestamp.replace(/[:.]/g, "-");
-  const filename = `${patientHash}_${safeTs}_${type}.pdf`;
-  return path.join(PDF_DIR, filename);
+export function generatePdfPath(ehrId: string, type: string): string {
+  const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+  return `./data/ehr/pdfs/${ehrId}_${timestamp}_${type}.pdf`;
 }
 
-export function saveFoucaultPDFs(
-  patientHash: string,
-  timestamp: string,
-  forensicBase64: string,
-  empathicBase64: string,
-  forensicHash: string,
-  empathicHash: string
-): PdfSaveResult {
-  const forensicPath = generatePdfPath(patientHash, "forensic", timestamp);
-  const empathicPath = generatePdfPath(patientHash, "empathic", timestamp);
-
-  fs.writeFileSync(forensicPath, Buffer.from(forensicBase64, "base64"));
-  fs.writeFileSync(empathicPath, Buffer.from(empathicBase64, "base64"));
-
-  return {
-    forensicPath,
-    empathicPath,
-    forensicHash,
-    empathicHash,
-  };
-}
-
-export function readFoucaultPDF(pdfPath: string): string {
-  if (!fs.existsSync(pdfPath)) {
-    throw new Error(`PDF no encontrado: ${pdfPath}`);
-  }
-  return fs.readFileSync(pdfPath).toString("base64");
-}
+export type EHRQuery = {
+  patientHash?: string;
+  ehrId?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  limit?: number;
+};

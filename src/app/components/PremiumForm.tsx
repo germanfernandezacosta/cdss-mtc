@@ -39,21 +39,65 @@ const SAFETY_ALERTS: SafetyAlert[] = [
   },
 ];
 
+// 12 meridianos Ryodoraku
+const RYODORAKU_MERIDIANS = [
+  { code: "LU", name: "Pulmón" },
+  { code: "LI", name: "Int. Grueso" },
+  { code: "ST", name: "Estómago" },
+  { code: "SP", name: "Bazo" },
+  { code: "HT", name: "Corazón" },
+  { code: "SI", name: "Int. Delgado" },
+  { code: "BL", name: "Vejiga" },
+  { code: "KI", name: "Riñón" },
+  { code: "PC", name: "Pericardio" },
+  { code: "TE", name: "T. Recalentador" },
+  { code: "GB", name: "Vesícula Biliar" },
+  { code: "LR", name: "Hígado" },
+];
+
 interface Props {
   onSubmit: (data: FormData) => void;
 }
 
 export interface FormData {
+  patientId?: string; // opcional, para edición de anamnesis existente
   patientName: string;
   patientAge: string;
   patientGender: "M" | "F" | "";
   symptoms: string;
   pulse: string;
   tongue: string;
-  ryodoraku: string;
+  ryodoraku: Record<string, string>; // ← ahora es objeto, no string
   medicalHistory: string;
   safetyAlerts: Record<string, boolean>;
 }
+
+/* ═══════════════════════════════════════════
+   UTILIDADES DE VALIDACIÓN (sin tocar estética)
+   ═══════════════════════════════════════════ */
+const blockNonNumericKeys = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  if (["e", "E", "-", "+", ".", ","].includes(e.key)) {
+    e.preventDefault();
+  }
+};
+
+const blockNumericKeys = (e: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  if (/^[0-9]$/.test(e.key)) {
+    e.preventDefault();
+  }
+};
+
+const sanitizeNumeric = (val: string, max: number) => {
+  const cleaned = val.replace(/[^0-9]/g, "");
+  if (cleaned === "") return "";
+  const num = parseInt(cleaned, 10);
+  if (num > max) return String(max);
+  return cleaned;
+};
+
+const sanitizeTextNoNumbers = (val: string) => {
+  return val.replace(/[0-9]/g, "");
+};
 
 /* ═══════════════════════════════════════════
    COMPONENTE WIZARD PREMIUM
@@ -66,10 +110,15 @@ export default function PremiumForm({ onSubmit }: Props) {
   const [patientName, setPatientName] = useState("");
   const [patientAge, setPatientAge] = useState("");
   const [patientGender, setPatientGender] = useState<"M" | "F" | "">("");
+  const [patientId, setPatientId] = useState(""); // opcional, para edición de anamnesis existente
   const [symptoms, setSymptoms] = useState("");
   const [pulse, setPulse] = useState("");
   const [tongue, setTongue] = useState("");
-  const [ryodoraku, setRyodoraku] = useState("");
+  const [ryodoraku, setRyodoraku] = useState<Record<string, string>>(() => {
+    const init: Record<string, string> = {};
+    RYODORAKU_MERIDIANS.forEach((m) => (init[m.code] = ""));
+    return init;
+  });
   const [medicalHistory, setMedicalHistory] = useState("");
   const [safetyAlerts, setSafetyAlerts] = useState<Record<string, boolean>>({
     pregnancy: false,
@@ -103,6 +152,7 @@ export default function PremiumForm({ onSubmit }: Props) {
     e.preventDefault();
     if (!isStep2Valid) return;
     onSubmit({
+      patientId,
       patientName,
       patientAge,
       patientGender,
@@ -117,6 +167,11 @@ export default function PremiumForm({ onSubmit }: Props) {
 
   const toggleAlert = (id: string) => {
     setSafetyAlerts((prev) => ({ ...prev, [id]: !prev[id] }));
+  };
+
+  const handleRyodorakuChange = (code: string, val: string) => {
+    const cleaned = sanitizeNumeric(val, 999); // máximo 999 por meridiano
+    setRyodoraku((prev) => ({ ...prev, [code]: cleaned }));
   };
 
   return (
@@ -139,7 +194,7 @@ export default function PremiumForm({ onSubmit }: Props) {
         }`}>
           <div className="space-y-5">
             {/* Fila: Nombre + Edad + Sexo */}
-            <div className="grid grid-cols-[1fr_80px_90px] gap-3">
+            <div className="grid grid-cols-[1fr_80px_90px_100px] gap-3">
               <div>
                 <label className="block text-sm font-medium text-slate mb-1.5">
                   Nombre del paciente
@@ -147,7 +202,8 @@ export default function PremiumForm({ onSubmit }: Props) {
                 <input
                   type="text"
                   value={patientName}
-                  onChange={(e) => setPatientName(e.target.value)}
+                  onChange={(e) => setPatientName(sanitizeTextNoNumbers(e.target.value))}
+                  onKeyDown={blockNumericKeys}
                   placeholder="Ej: María García López"
                   className="input-premium"
                   required
@@ -158,11 +214,12 @@ export default function PremiumForm({ onSubmit }: Props) {
                   Edad
                 </label>
                 <input
-                  type="number"
-                  min="0"
-                  max="120"
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
                   value={patientAge}
-                  onChange={(e) => setPatientAge(e.target.value)}
+                  onChange={(e) => setPatientAge(sanitizeNumeric(e.target.value, 120))}
+                  onKeyDown={blockNonNumericKeys}
                   placeholder="45"
                   className="input-premium text-center"
                 />
@@ -184,6 +241,19 @@ export default function PremiumForm({ onSubmit }: Props) {
               </div>
             </div>
 
+                          <div>
+                <label className="block text-sm font-medium text-slate mb-1.5">
+                  Nº Historia
+                </label>
+                <input
+                  type="text"
+                  value={patientId}
+                  onChange={(e) => setPatientId(e.target.value.toUpperCase())}
+                  placeholder="HC-001"
+                  className="input-premium text-center text-xs"
+                />
+              </div>
+
             {/* Síntomas */}
             <div>
               <label className="block text-sm font-medium text-slate mb-1.5">
@@ -191,7 +261,8 @@ export default function PremiumForm({ onSubmit }: Props) {
               </label>
               <textarea
                 value={symptoms}
-                onChange={(e) => setSymptoms(e.target.value)}
+                onChange={(e) => setSymptoms(sanitizeTextNoNumbers(e.target.value))}
+                onKeyDown={blockNumericKeys}
                 placeholder="Describa los síntomas observados: dolor, fatiga, insomnio, alteraciones digestivas, estado emocional..."
                 rows={5}
                 className="input-premium resize-none"
@@ -209,7 +280,8 @@ export default function PremiumForm({ onSubmit }: Props) {
               </label>
               <textarea
                 value={medicalHistory}
-                onChange={(e) => setMedicalHistory(e.target.value)}
+                onChange={(e) => setMedicalHistory(sanitizeTextNoNumbers(e.target.value))}
+                onKeyDown={blockNumericKeys}
                 placeholder="Enfermedades previas, cirugías, tratamientos actuales, alergias conocidas..."
                 rows={3}
                 className="input-premium resize-none"
@@ -252,7 +324,8 @@ export default function PremiumForm({ onSubmit }: Props) {
               </label>
               <textarea
                 value={tongue}
-                onChange={(e) => setTongue(e.target.value)}
+                onChange={(e) => setTongue(sanitizeTextNoNumbers(e.target.value))}
+                onKeyDown={blockNumericKeys}
                 placeholder="Color, forma, recubrimiento lingual, humedad, movimientos involuntarios..."
                 rows={4}
                 className="input-premium resize-none"
@@ -267,27 +340,40 @@ export default function PremiumForm({ onSubmit }: Props) {
               </label>
               <textarea
                 value={pulse}
-                onChange={(e) => setPulse(e.target.value)}
+                onChange={(e) => setPulse(sanitizeTextNoNumbers(e.target.value))}
+                onKeyDown={blockNumericKeys}
                 placeholder="Ej: Pulso superficial y rápido (Shu) en cun izquierda, profundo y lento (Chen) en chi derecha..."
                 rows={4}
                 className="input-premium resize-none"
               />
             </div>
 
-            {/* Ryodoraku */}
+            {/* Ryodoraku — 12 inputs numéricos */}
             <div>
               <label className="block text-sm font-medium text-slate mb-1.5">
-                Medición Ryodoraku
+                Medición Ryodoraku (conductancia por meridiano)
               </label>
-              <textarea
-                value={ryodoraku}
-                onChange={(e) => setRyodoraku(e.target.value)}
-                placeholder="Valores por meridiano (LU, LI, ST, SP, HT, SI, BL, KI, PC, TE, GB, LR)..."
-                rows={3}
-                className="input-premium resize-none"
-              />
+              <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                {RYODORAKU_MERIDIANS.map((m) => (
+                  <div key={m.code} className="flex flex-col">
+                    <span className="text-[10px] text-ash uppercase tracking-wider mb-0.5">
+                      {m.code} <span className="text-fog">({m.name})</span>
+                    </span>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      value={ryodoraku[m.code]}
+                      onChange={(e) => handleRyodorakuChange(m.code, e.target.value)}
+                      onKeyDown={blockNonNumericKeys}
+                      placeholder="0"
+                      className="input-premium text-center text-sm py-1.5"
+                    />
+                  </div>
+                ))}
+              </div>
               <p className="text-xs text-ash mt-1.5">
-                Opcional. Valores numéricos de conductancia eléctrica por meridiano.
+                Valores numéricos de conductancia eléctrica por meridiano. Opcional.
               </p>
             </div>
 
