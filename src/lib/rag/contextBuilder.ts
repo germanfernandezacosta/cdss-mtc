@@ -1,17 +1,9 @@
 // src/lib/rag/contextBuilder.ts
-// RAG Context Builder v2.1-fix
-// Usa Embedder real si existe, sino avisa.
+// RAG Context Builder v2.2-fix
+// Importa Embedder correctamente para ESM/Next.js
 
 import { VectorStore, RetrievedChunk } from './vectorStore';
-
-// ── Intentar importar tu embedder existente ──
-let EmbedderClass: any = null;
-try {
-  const embedderModule = require('./embedder');
-  EmbedderClass = embedderModule.Embedder || embedderModule.default;
-} catch (e) {
-  console.warn('[contextBuilder] No se pudo cargar embedder.ts, usando fallback');
-}
+import { Embedder } from './embedder';  // ← Import estático ESM
 
 export interface RAGContext {
   context: string;
@@ -68,26 +60,18 @@ function getDisplayName(documentId: string | null | undefined): string {
 }
 
 /**
- * Genera embedding de query usando tu embedder real.
- * Si no hay embedder, usa un método de búsqueda por contenido (fallback).
+ * Genera embedding de query usando Embedder real.
  */
 async function generateQueryEmbedding(query: string): Promise<number[]> {
-  if (EmbedderClass) {
-    try {
-      const embedder = new EmbedderClass();
-      // Tu embedder no tiene .embed(), tiene .embedBatch()
-      const embeddings = await embedder.embedBatch([query]);
-      if (Array.isArray(embeddings) && embeddings.length > 0 && Array.isArray(embeddings[0])) {
-        console.log(`[RAG] Embedding real: ${embeddings[0].length} dims`);
-        return embeddings[0];
-      }
-    } catch (e: any) {
-      console.warn(`[RAG] Embedder falló: ${e.message}`);
-    }
+  try {
+    const embedder = new Embedder();
+    const embedding = await embedder.embedQuery(query);
+    console.log(`[RAG] Embedding real: ${embedding.length} dims`);
+    return embedding;
+  } catch (e: any) {
+    console.error(`[RAG] Embedder falló: ${e.message}`);
+    throw new Error(`No se pudo generar embedding para RAG: ${e.message}`);
   }
-
-  console.warn('[RAG] ⚠️  Fallback dummy — integra embedBatch()');
-  return new Array(3072).fill(0).map(() => Math.random() - 0.5);
 }
 
 export async function buildRAGContext(options: {
@@ -165,5 +149,3 @@ export async function buildRAGContext(options: {
     store.close();
   }
 }
-
-export default buildRAGContext;
