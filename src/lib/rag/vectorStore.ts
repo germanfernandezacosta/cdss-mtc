@@ -1,8 +1,8 @@
 // src/lib/rag/vectorStore.ts
-// Vector Store v3.0 — sqlite-vec (robusto, probado, sin cosine manual)
+// Vector Store v3.1 — Sin sqlite-vec, cosine similarity nativo, robusto
+// FIX: Elimina dependencia de sqlite-vec que falla con tipos de metadata
 
 import Database from 'better-sqlite3';
-import * as sqliteVec from 'sqlite-vec';
 import path from 'path';
 
 export interface Chunk {
@@ -29,6 +29,16 @@ export interface RetrievedChunk {
   similarity: number;
 }
 
+function cosineSimilarity(a: number[], b: number[]): number {
+  let dot = 0, normA = 0, normB = 0;
+  for (let i = 0; i < a.length; i++) {
+    dot += a[i] * b[i];
+    normA += a[i] * a[i];
+    normB += b[i] * b[i];
+  }
+  return dot / (Math.sqrt(normA) * Math.sqrt(normB));
+}
+
 export class VectorStore {
   private db: Database.Database;
 
@@ -36,7 +46,6 @@ export class VectorStore {
     const finalPath = dbPath || path.join(process.cwd(), 'data', 'vectors', 'fukuoka-master.db');
     this.db = new Database(finalPath);
     this.db.pragma('journal_mode = WAL');
-    sqliteVec.load(this.db);
     this.init();
   }
 
@@ -53,15 +62,23 @@ export class VectorStore {
     `);
 
     this.db.exec(`
-      CREATE VIRTUAL TABLE IF NOT EXISTS vec_chunks USING vec0(
+      CREATE TABLE IF NOT EXISTS chunks (
         chunk_id TEXT PRIMARY KEY,
         document_id TEXT,
         domain TEXT,
         content TEXT,
-        page_start INTEGER,
-        page_end INTEGER,
-        embedding FLOAT[3072]
+        page_start REAL,
+        page_end REAL,
+        embedding TEXT
       );
+    `);
+
+    this.db.exec(`
+      CREATE INDEX IF NOT EXISTS idx_chunks_domain ON chunks(domain);
+    `);
+
+    this.db.exec(`
+      CREATE INDEX IF NOT EXISTS idx_chunks_doc_id ON chunks(document_id);
     `);
   }
 
@@ -93,7 +110,7 @@ export class VectorStore {
     }
 
     const stmt = this.db.prepare(`
-      INSERT OR REPLACE INTO vec_chunks (chunk_id, document_id, domain, content, page_start, page_end, embedding)
+      INSERT OR REPLACE INTO chunks (chunk_id, document_id, domain, content, page_start, page_end, embedding)
       VALUES (?, ?, ?, ?, ?, ?, ?)
     `);
 
@@ -115,7 +132,7 @@ export class VectorStore {
   }
 
   clearDomain(domain: string): void {
-    this.db.prepare("DELETE FROM vec_chunks WHERE domain = ?").run(domain);
+    this.db.prepare("DELETE FROM chunks WHERE domain = ?").run(domain);
     this.db.prepare("DELETE FROM documents WHERE domain = ?").run(domain);
   }
 
@@ -130,45 +147,16 @@ export class VectorStore {
     const effectiveLimit = topK || limit || 5;
     const targetDomains = domains || (domain ? [domain] : []);
 
-    let sql: string;
-    let params: any[];
+    let rows: any[];
 
     if (targetDomains.length === 1) {
-      sql = `
-        SELECT chunk_id, document_id, domain, content, page_start, page_end, distance
-        FROM vec_chunks
-        WHERE domain = ? AND embedding MATCH ? AND k = ?
-        ORDER BY distance
-      `;
-      params = [targetDomains[0], JSON.stringify(queryEmbedding), effectiveLimit * 2];
+      rows = this.db.prepare("SELECT * FROM chunks WHERE domain = ?").all(targetDomains[0]);
     } else if (targetDomains.length > 1) {
       const placeholders = targetDomains.map(() => '?').join(',');
-      sql = `
-        SELECT chunk_id, document_id, domain, content, page_start, page_end, distance
-        FROM vec_chunks
-        WHERE domain IN (${placeholders}) AND embedding MATCH ? AND k = ?
-        ORDER BY distance
-      `;
-      params = [...targetDomains, JSON.stringify(queryEmbedding), effectiveLimit * 2];
+      rows = this.db.prepare(`SELECT * FROM chunks WHERE domain IN (${placeholders})`).all(...targetDomains);
     } else {
-      sql = `
-        SELECT chunk_id, document_id, domain, content, page_start, page_end, distance
-        FROM vec_chunks
-        WHERE embedding MATCH ? AND k = ?
-        ORDER BY distance
-      `;
-      params = [JSON.stringify(queryEmbedding), effectiveLimit * 2];
+      rows = this.db.prepare("SELECT * FROM chunks").all();
     }
-
-    const rows = this.db.prepare(sql).all(...params) as Array<{
-      chunk_id: string;
-      document_id: string;
-      domain: string;
-      content: string;
-      page_start: number;
-      page_end: number;
-      distance: number;
-    }>;
 
     const results: RetrievedChunk[] = rows.map(row => ({
       id: row.chunk_id,
@@ -178,18 +166,19 @@ export class VectorStore {
       content: row.content,
       pageStart: row.page_start,
       pageEnd: row.page_end,
-      similarity: 1 - (row.distance * row.distance) / 2
+      similarity: cosineSimilarity(queryEmbedding, JSON.parse(row.embedding))
     }));
 
     return results
       .filter(r => r.similarity >= minSimilarity)
+      .sort((a, b) => b.similarity - a.similarity)
       .slice(0, effectiveLimit);
   }
 
   getStats(): Array<{ domain: string; files: number; chunks: number }> {
     const rows = this.db.prepare(`
       SELECT domain, COUNT(DISTINCT document_id) as files, COUNT(*) as chunks
-      FROM vec_chunks
+      FROM chunks
       GROUP BY domain
     `).all() as any[];
 
@@ -201,8 +190,8 @@ export class VectorStore {
   }
 
   diagnostic(): { total: number; domains: string[] } {
-    const total = this.db.prepare('SELECT COUNT(*) as c FROM vec_chunks').get() as { c: number };
-    const domains = this.db.prepare('SELECT DISTINCT domain FROM vec_chunks').all() as any[];
+    const total = this.db.prepare('SELECT COUNT(*) as c FROM chunks').get() as { c: number };
+    const domains = this.db.prepare('SELECT DISTINCT domain FROM chunks').all() as any[];
     return {
       total: total.c,
       domains: domains.map(d => d.domain)

@@ -42,3 +42,4 @@ data/sources/**/*.pdf
 !data/sources/**/.gitkeep
 # pdfmake VFS (generado automáticamente, 33MB)
 public/vfs_fonts.js*.db.backup-*
+data/vectors/*.db.backup-*
