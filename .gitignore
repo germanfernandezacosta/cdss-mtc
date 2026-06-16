@@ -41,5 +41,5 @@ data/vectors/*.db-journal
 data/sources/**/*.pdf
 !data/sources/**/.gitkeep
 # pdfmake VFS (generado automáticamente, 33MB)
-public/vfs_fonts.js*.db.backup-*
+# fixed line
 data/vectors/*.db.backup-*
