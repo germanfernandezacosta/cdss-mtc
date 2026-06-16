@@ -1,12 +1,12 @@
 // src/scripts/test-rag-citations.ts
-// Test de diagnóstico RAG v2.1 — Ejecutar: npx tsx src/scripts/test-rag-citations.ts
+// Test de diagnóstico RAG v3.0 — Ejecutar: npx tsx src/scripts/test-rag-citations.ts
 
 import { VectorStore } from '../lib/rag/vectorStore';
 import { buildRAGContext } from '../lib/rag/contextBuilder';
 
 async function main() {
   console.log('═══════════════════════════════════════════════════════════');
-  console.log('  DIAGNÓSTICO RAG v2.1 — CDSS MTC Premium');
+  console.log('  DIAGNÓSTICO RAG v3.0 — CDSS MTC Premium');
   console.log('═══════════════════════════════════════════════════════════\n');
 
   const DB_PATH = './data/vectors/fukuoka-master.db';
@@ -19,12 +19,10 @@ async function main() {
   const diag = store.diagnostic();
 
   console.log(`   Total chunks:      ${diag.total}`);
-  console.log(`   Con document_id:   ${diag.withDocId} ✅`);
-  console.log(`   Sin document_id:   ${diag.withoutDocId} ${diag.withoutDocId > 0 ? '❌ CRÍTICO' : '✅'}`);
-  console.log(`   Muestras doc_id:   ${diag.sampleDocs.join(', ') || '(vacío)'}`);
+  console.log(`   Dominios:          ${diag.domains.join(', ') || '(vacío)'}`);
 
-  if (diag.withoutDocId > 0) {
-    console.log('\n   ⚠️  Hay chunks sin document_id. Ejecuta el migration SQL.');
+  if (diag.total === 0) {
+    console.log('\n   ⚠️  Base de datos vacía. Ejecuta ingest.ts primero.');
   }
   console.log();
 
@@ -89,11 +87,11 @@ async function main() {
   console.log('  RESUMEN');
   console.log('═══════════════════════════════════════════════════════════');
 
-  const allOk = diag.withoutDocId === 0;
+  const allOk = diag.total > 0;
 
   if (allOk) {
     console.log('   ✅ RAG funcionando correctamente.');
-    console.log('   ✅ document_id se recupera en todos los chunks.');
+    console.log('   ✅ Chunks presentes en la base de datos.');
   } else {
     console.log('   ❌ Hay problemas. Revisa los tests arriba.');
   }

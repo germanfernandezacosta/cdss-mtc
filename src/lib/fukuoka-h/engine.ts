@@ -133,7 +133,11 @@ export async function generateTreatment({
 }
 
 // ─────────────────────────────────────────────────────────────
-// 2. PARSE NOTEBOOKLM RESPONSE
+// 2. PARSE NOTEBOOKLM RESPONSE — VERSIÓN ROBUSTA
+// ─────────────────────────────────────────────────────────────
+// Soporta ambos formatos de sección:
+//   === SECCIÓN A ===  (formato actual de route.ts v2.3)
+//   ## Sección A:      (formato alternativo NotebookLM)
 // ─────────────────────────────────────────────────────────────
 
 export function parseNotebookLMResponse(rawLlmResponse: string): ParsedResponse {
@@ -245,7 +249,6 @@ export async function generateTreatmentWithKantLoop(
     if (attempts >= maxRetries) break;
   }
 
-  // ALERTA HUMANA — 4º intento conceptual
   return {
     success: false,
     rawResponse: lastRawResponse,
@@ -446,22 +449,54 @@ function buildHumanInterventionReason(alerts: KantAlert[]): string {
   ].join("\n");
 }
 
+// ─────────────────────────────────────────────────────────────
+// EXTRACT SECTION — VERSIÓN ROBUSTA (soporta ambos formatos)
+// ─────────────────────────────────────────────────────────────
+
 function extractSection(text: string, sectionLabel: string): string {
-  const patterns = [
-    new RegExp(
-      `(?:#{1,3}\\s*(?:Sección|Section)?\\s*${sectionLabel}[.:\\s]*)` +
-        `([\\s\\S]*?)(?=\\n(?:#{1,3}\\s*(?:Sección|Section)?\\s*[BC][.:\\s]*|$))`,
-      "i"
-    ),
-    new RegExp(
-      `(?:^|\\n)${sectionLabel}[.:\\)\\]\\s]+([\\s\\S]*?)(?=\\n[BC][.:\\)\\]\\s]+|$)`,
-      "i"
-    ),
-  ];
+  // Patrón 1: === SECCIÓN A === (formato actual de route.ts v2.3)
+  // Ejemplo: === SECCIÓN A — ALERTA KANT (Seguridad) ===
+  const patternTripleEquals = new RegExp(
+    `(?:={3,}\\s*(?:SECCIÓN|SECTION|Sección|Section)?\\s*${sectionLabel}[\\s\\w\\u2014\\u2013\\-—–]*={3,})` +
+    `([\\s\\S]*?)(?=(?:={3,}\\s*(?:SECCIÓN|SECTION|Sección|Section)?\\s*[BC][\\s\\w\\u2014\\u2013\\-—–]*={3,}|##\\s*Metadatos|$))`,
+    "i"
+  );
+
+  // Patrón 2: ## Sección A: (formato alternativo NotebookLM)
+  const patternHash = new RegExp(
+    `(?:#{1,3}\\s*(?:Sección|Section)?\\s*${sectionLabel}[.:\\s]*)` +
+    `([\\s\\S]*?)(?=\\n(?:#{1,3}\\s*(?:Sección|Section)?\\s*[BC][.:\\s]*|##\\s*Metadatos|$))`,
+    "i"
+  );
+
+  // Patrón 3: Section A: (inglés simple)
+  const patternSimple = new RegExp(
+    `(?:^|\\n)${sectionLabel}[.:\\)\\]\\s]+([\\s\\S]*?)(?=\\n[BC][.:\\)\\]\\s]+|##\\s*Metadatos|$)`,
+    "i"
+  );
+
+  const patterns = [patternTripleEquals, patternHash, patternSimple];
 
   for (const pattern of patterns) {
     const match = text.match(pattern);
-    if (match?.[1]) return match[1].trim();
+    if (match?.[1]) {
+      const content = match[1].trim();
+      if (content.length > 0) {
+        return content;
+      }
+    }
+  }
+
+  // Fallback: si no encuentra secciones estructuradas, intentar extraer
+  // cualquier texto que parezca ser la sección buscada
+  const fallbackPattern = new RegExp(
+    `(?:^|\\n)(?:.*?(?:${sectionLabel}).*?(?:\\n|:))` +
+    `([\\s\\S]{50,}?(?=\\n(?:.*?(?:[BC]).*?(?:\\n|:))|$))`,
+    "i"
+  );
+  const fallbackMatch = text.match(fallbackPattern);
+  if (fallbackMatch?.[1]) {
+    return fallbackMatch[1].trim();
   }
 
   return "";

@@ -1,7 +1,6 @@
 /**
- * test-fukuoka-forense.ts — Verificación forense del RAG
- * Fix v2.1: Detecta automáticamente la dimensión de embeddings en la DB real
- *           para evitar "Dimension mismatch".
+ * test-fukuoka-forense.ts — Verificación forense del RAG v3.0
+ * Fix: Compatibilidad con sqlite-vec, tipos actualizados
  */
 
 import path from "path";
@@ -16,7 +15,7 @@ const DB_PATH = path.resolve(process.cwd(), "data/vectors/fukuoka-master.db");
  */
 function getEmbeddingDimension(dbPath: string): number {
   const db = new Database(dbPath);
-  const row = db.prepare("SELECT embedding FROM chunks WHERE embedding IS NOT NULL LIMIT 1").get() as any;
+  const row = db.prepare("SELECT embedding FROM vec_chunks WHERE embedding IS NOT NULL LIMIT 1").get() as any;
   db.close();
   if (!row || !row.embedding) return 1536; // fallback
   return JSON.parse(row.embedding).length;
@@ -37,13 +36,13 @@ function makeDummyEmbedding(dim: number, seed = 42): number[] {
 }
 
 async function main() {
-  console.log("🔬 Verificación forense RAG — CDSS MTC Premium\n");
+  console.log("🔬 Verificación forense RAG v3.0 — CDSS MTC Premium\n");
 
   const store = new VectorStore(DB_PATH);
-  const stats = store.getStats() as Record<string, { chunks: number }>;
+  const stats = store.getStats();
   console.log("📊 Stats por dominio:", JSON.stringify(stats, null, 2), "\n");
 
-  const totalChunks = Object.values(stats).reduce((sum, s) => sum + s.chunks, 0);
+  const totalChunks = stats.reduce((sum, s) => sum + s.chunks, 0);
   if (totalChunks === 0) {
     console.log("⚠️  DB vacía. Ejecuta ingest.ts primero.");
     store.close();
@@ -57,15 +56,15 @@ async function main() {
   // Query con embedding dummy de la dimensión correcta
   const queryEmbedding = makeDummyEmbedding(dim, 42);
   const chunks = store.search(queryEmbedding, {
-    domains: ["mtc-core"],
-    topK: 5,
+    domain: "mtc-core",
+    limit: 5,
     minSimilarity: 0,
   });
 
   console.log(`🔎 Top ${chunks.length} chunks recuperados:\n`);
 
   for (const r of chunks) {
-    const source = r.document?.title || r.document?.filename || "desconocida";
+    const source = typeof r.document === 'string' ? r.document : (r.document?.title || r.document?.filename || "desconocida");
     const score = r.similarity?.toFixed(3) || "N/A";
     const pages = r.pageStart && r.pageEnd ? `p.${r.pageStart}-${r.pageEnd}` : "";
 

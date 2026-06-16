@@ -180,12 +180,12 @@ async function ingestRegulatory() {
   console.log("Total embeddings: " + totalEmbeddings);
   console.log("Dimensiones: 3072 (text-embedding-3-large)");
 
-  const stats = store.getStats() as Record<string, { files: number; chunks: number }>;
+  const stats = store.getStats();
   console.log("");
   console.log("📊 Estadisticas por dominio:");
-  for (const [dom, stat] of Object.entries(stats)) {
-    if (dom.startsWith("regulatory")) {
-      console.log("   " + dom + ": " + stat.chunks + " chunks");
+  for (const stat of stats) {
+    if (stat.domain.startsWith("regulatory")) {
+      console.log("   " + stat.domain + ": " + stat.chunks + " chunks");
     }
   }
 

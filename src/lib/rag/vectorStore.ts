@@ -1,43 +1,31 @@
 // src/lib/rag/vectorStore.ts
-// Vector Store v2.1-fix — Ultra-compatible con scripts existentes
-// Usa tipos flexibles para evitar conflictos con tus interfaces de types.ts
+// Vector Store v3.0 — sqlite-vec (robusto, probado, sin cosine manual)
 
 import Database from 'better-sqlite3';
+import * as sqliteVec from 'sqlite-vec';
 import path from 'path';
 
-// ── Tipos internos (DB) ──
-interface DBChunk {
-  chunk_id: string;
-  document_id: string;
-  domain: string;
-  content: string;
-  page_start: number;
-  page_end: number;
-  token_count: number;
-  embedding: string;
-}
-
-// ── Tipos públicos (compatibles con tus scripts) ──
 export interface Chunk {
-  chunk_id: string;
-  document_id: string;
-  domain: string;
-  content: string;
-  page_start: number;
-  page_end: number;
-  token_count: number;
-  embedding: number[];
-}
-
-export interface RetrievedChunk {
   id: string;
-  document: any;              // ← any: puede ser string o {title, filename}
   documentId: string;
   domain: string;
   content: string;
   pageStart: number;
   pageEnd: number;
-  tokenCount: number;
+  embedding?: number[];
+  tokenCount?: number;
+  document?: any;
+  [key: string]: any;
+}
+
+export interface RetrievedChunk {
+  id: string;
+  document: any;
+  documentId: string;
+  domain: string;
+  content: string;
+  pageStart: number;
+  pageEnd: number;
   similarity: number;
 }
 
@@ -48,154 +36,163 @@ export class VectorStore {
     const finalPath = dbPath || path.join(process.cwd(), 'data', 'vectors', 'fukuoka-master.db');
     this.db = new Database(finalPath);
     this.db.pragma('journal_mode = WAL');
+    sqliteVec.load(this.db);
     this.init();
   }
 
   private init() {
     this.db.exec(`
-      CREATE TABLE IF NOT EXISTS chunks (
+      CREATE TABLE IF NOT EXISTS documents (
+        document_id TEXT PRIMARY KEY,
+        domain TEXT,
+        filename TEXT,
+        title TEXT,
+        total_pages INTEGER,
+        ingested_at TEXT
+      );
+    `);
+
+    this.db.exec(`
+      CREATE VIRTUAL TABLE IF NOT EXISTS vec_chunks USING vec0(
         chunk_id TEXT PRIMARY KEY,
-        document_id TEXT NOT NULL,
+        document_id TEXT,
         domain TEXT,
         content TEXT,
         page_start INTEGER,
         page_end INTEGER,
-        token_count INTEGER,
-        embedding TEXT
+        embedding FLOAT[3072]
       );
-      CREATE INDEX IF NOT EXISTS idx_chunks_domain ON chunks(domain);
-      CREATE INDEX IF NOT EXISTS idx_chunks_document ON chunks(document_id);
     `);
   }
 
-  // ── insertChunk (singular) ──
-  insertChunk(chunk: Chunk): void {
-    if (!chunk.document_id || chunk.document_id.trim() === '') {
-      throw new Error(`[VectorStore] document_id obligatorio. chunk_id=${chunk.chunk_id}`);
-    }
+  upsertDocument(doc: { id: string; domain: string; filename: string; title?: string; totalPages?: number }): void {
     const stmt = this.db.prepare(`
-      INSERT INTO chunks (chunk_id, document_id, domain, content, page_start, page_end, token_count, embedding)
-      VALUES (@chunk_id, @document_id, @domain, @content, @page_start, @page_end, @token_count, @embedding)
-      ON CONFLICT(chunk_id) DO UPDATE SET
-        document_id = excluded.document_id,
+      INSERT INTO documents (document_id, domain, filename, title, total_pages, ingested_at)
+      VALUES (?, ?, ?, ?, ?, ?)
+      ON CONFLICT(document_id) DO UPDATE SET
         domain = excluded.domain,
-        content = excluded.content,
-        embedding = excluded.embedding
+        filename = excluded.filename,
+        title = excluded.title,
+        total_pages = excluded.total_pages
     `);
-    stmt.run({
-      chunk_id: chunk.chunk_id,
-      document_id: chunk.document_id,
-      domain: chunk.domain,
-      content: chunk.content,
-      page_start: chunk.page_start,
-      page_end: chunk.page_end,
-      token_count: chunk.token_count,
-      embedding: JSON.stringify(chunk.embedding)
-    });
+    stmt.run(doc.id, doc.domain, doc.filename, doc.title || null, doc.totalPages || 0, new Date().toISOString());
   }
 
-  // ── insertChunks (plural) — acepta TextChunk[] o Chunk[] ──
-  insertChunks(chunks: any[]): void {
-    const insert = this.db.prepare(`
-      INSERT INTO chunks (chunk_id, document_id, domain, content, page_start, page_end, token_count, embedding)
-      VALUES (@chunk_id, @document_id, @domain, @content, @page_start, @page_end, @token_count, @embedding)
-      ON CONFLICT(chunk_id) DO UPDATE SET
-        document_id = excluded.document_id,
-        domain = excluded.domain,
-        content = excluded.content,
-        embedding = excluded.embedding
+  insertChunks(chunks: Chunk[]): void {
+    const validChunks = chunks.filter(c => {
+      if (!c.embedding || !Array.isArray(c.embedding) || c.embedding.length === 0) {
+        console.warn(`[VectorStore] Chunk ${c.id} omitido: sin embedding valido`);
+        return false;
+      }
+      return true;
+    });
+
+    if (validChunks.length === 0) {
+      console.warn('[VectorStore] No hay chunks con embedding para insertar');
+      return;
+    }
+
+    const stmt = this.db.prepare(`
+      INSERT OR REPLACE INTO vec_chunks (chunk_id, document_id, domain, content, page_start, page_end, embedding)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
     `);
-    const tx = this.db.transaction((items: any[]) => {
-      for (const item of items) {
-        const mapped = this.mapToDBChunk(item);
-        if (!mapped.document_id) {
-          console.warn(`[VectorStore] Saltando chunk sin document_id: ${mapped.chunk_id}`);
-          continue;
-        }
-        insert.run({
-          chunk_id: mapped.chunk_id,
-          document_id: mapped.document_id,
-          domain: mapped.domain,
-          content: mapped.content,
-          page_start: mapped.page_start,
-          page_end: mapped.page_end,
-          token_count: mapped.token_count,
-          embedding: JSON.stringify(mapped.embedding)
-        });
+
+    const tx = this.db.transaction((items: Chunk[]) => {
+      for (const chunk of items) {
+        stmt.run(
+          chunk.id,
+          chunk.documentId,
+          chunk.domain,
+          chunk.content,
+          chunk.pageStart,
+          chunk.pageEnd,
+          JSON.stringify(chunk.embedding)
+        );
       }
     });
-    tx(chunks);
+
+    tx(validChunks);
   }
 
-  // ── upsertDocument — acepta SourceDocument (con filename/title) ──
-  upsertDocument(doc: any): void {
-    // SourceDocument no tiene content/embedding, así que solo guardamos metadata
-    // Si tu repo original tiene tabla 'documents', esto la ignora por ahora
-    console.log(`[VectorStore] upsertDocument: ${doc.id} (${doc.filename || doc.title || 'sin nombre'})`);
-  }
-
-  // ── clearDomain ──
   clearDomain(domain: string): void {
-    this.db.prepare('DELETE FROM chunks WHERE domain = ?').run(domain);
+    this.db.prepare("DELETE FROM vec_chunks WHERE domain = ?").run(domain);
+    this.db.prepare("DELETE FROM documents WHERE domain = ?").run(domain);
   }
 
-  // ── search — acepta topK como alias de limit, y domains (plural) ──
-  search(queryEmbedding: number[], options: any = {}): RetrievedChunk[] {
-    const {
-      domain,
-      domains,
-      limit = 5,
-      topK,
-      minSimilarity = 0.7
-    } = options;
-
-    const actualLimit = topK || limit;
+  search(queryEmbedding: number[], options: {
+    domain?: string;
+    domains?: string[];
+    limit?: number;
+    topK?: number;
+    minSimilarity?: number;
+  } = {}): RetrievedChunk[] {
+    const { domain, domains, limit, topK, minSimilarity = 0.7 } = options;
+    const effectiveLimit = topK || limit || 5;
     const targetDomains = domains || (domain ? [domain] : []);
 
-    let sql = `SELECT chunk_id, document_id, domain, content, page_start, page_end, token_count, embedding FROM chunks`;
-    const params: any[] = [];
+    let sql: string;
+    let params: any[];
 
     if (targetDomains.length === 1) {
-      sql += ` WHERE domain = ?`;
-      params.push(targetDomains[0]);
+      sql = `
+        SELECT chunk_id, document_id, domain, content, page_start, page_end, distance
+        FROM vec_chunks
+        WHERE domain = ? AND embedding MATCH ? AND k = ?
+        ORDER BY distance
+      `;
+      params = [targetDomains[0], JSON.stringify(queryEmbedding), effectiveLimit * 2];
     } else if (targetDomains.length > 1) {
-      sql += ` WHERE domain IN (${targetDomains.map(() => '?').join(',')})`;
-      params.push(...targetDomains);
+      const placeholders = targetDomains.map(() => '?').join(',');
+      sql = `
+        SELECT chunk_id, document_id, domain, content, page_start, page_end, distance
+        FROM vec_chunks
+        WHERE domain IN (${placeholders}) AND embedding MATCH ? AND k = ?
+        ORDER BY distance
+      `;
+      params = [...targetDomains, JSON.stringify(queryEmbedding), effectiveLimit * 2];
+    } else {
+      sql = `
+        SELECT chunk_id, document_id, domain, content, page_start, page_end, distance
+        FROM vec_chunks
+        WHERE embedding MATCH ? AND k = ?
+        ORDER BY distance
+      `;
+      params = [JSON.stringify(queryEmbedding), effectiveLimit * 2];
     }
 
-    const rows = this.db.prepare(sql).all(...params) as DBChunk[];
+    const rows = this.db.prepare(sql).all(...params) as Array<{
+      chunk_id: string;
+      document_id: string;
+      domain: string;
+      content: string;
+      page_start: number;
+      page_end: number;
+      distance: number;
+    }>;
 
-    const results: RetrievedChunk[] = rows.map(row => {
-      const embedding: number[] = JSON.parse(row.embedding);
-      const similarity = this.cosineSimilarity(queryEmbedding, embedding);
-      return {
-        id: row.chunk_id,
-        document: row.document_id,      // ← string por defecto
-        documentId: row.document_id,
-        domain: row.domain,
-        content: row.content,
-        pageStart: row.page_start,
-        pageEnd: row.page_end,
-        tokenCount: row.token_count,
-        similarity
-      };
-    });
+    const results: RetrievedChunk[] = rows.map(row => ({
+      id: row.chunk_id,
+      document: row.document_id,
+      documentId: row.document_id,
+      domain: row.domain,
+      content: row.content,
+      pageStart: row.page_start,
+      pageEnd: row.page_end,
+      similarity: 1 - (row.distance * row.distance) / 2
+    }));
 
     return results
       .filter(r => r.similarity >= minSimilarity)
-      .sort((a, b) => b.similarity - a.similarity)
-      .slice(0, actualLimit);
+      .slice(0, effectiveLimit);
   }
 
-  // ── getStats — devuelve formato que tus scripts esperan ──
-  getStats(): any {
+  getStats(): Array<{ domain: string; files: number; chunks: number }> {
     const rows = this.db.prepare(`
       SELECT domain, COUNT(DISTINCT document_id) as files, COUNT(*) as chunks
-      FROM chunks
+      FROM vec_chunks
       GROUP BY domain
     `).all() as any[];
 
-    // Formato array con {domain, files, chunks}
     return rows.map(r => ({
       domain: r.domain,
       files: r.files,
@@ -203,47 +200,16 @@ export class VectorStore {
     }));
   }
 
-  // ── DIAGNÓSTICO ──
-  diagnostic(): { total: number; withDocId: number; withoutDocId: number; sampleDocs: string[] } {
-    const total = this.db.prepare('SELECT COUNT(*) as c FROM chunks').get() as { c: number };
-    const withDocId = this.db.prepare(`SELECT COUNT(*) as c FROM chunks WHERE document_id IS NOT NULL AND document_id != ''`).get() as { c: number };
-    const withoutDocId = this.db.prepare(`SELECT COUNT(*) as c FROM chunks WHERE document_id IS NULL OR document_id = ''`).get() as { c: number };
-    const samples = this.db.prepare(`SELECT DISTINCT document_id FROM chunks WHERE document_id IS NOT NULL LIMIT 10`).all() as any[];
+  diagnostic(): { total: number; domains: string[] } {
+    const total = this.db.prepare('SELECT COUNT(*) as c FROM vec_chunks').get() as { c: number };
+    const domains = this.db.prepare('SELECT DISTINCT domain FROM vec_chunks').all() as any[];
     return {
       total: total.c,
-      withDocId: withDocId.c,
-      withoutDocId: withoutDocId.c,
-      sampleDocs: samples.map(s => s.document_id)
+      domains: domains.map(d => d.domain)
     };
-  }
-
-  private mapToDBChunk(item: any): Chunk {
-    // Mapea TextChunk (id, documentId, pageStart...) a DB Chunk (chunk_id, document_id, page_start...)
-    return {
-      chunk_id: item.id || item.chunk_id,
-      document_id: item.documentId || item.document_id || item.document,
-      domain: item.domain,
-      content: item.content,
-      page_start: item.pageStart || item.page_start || 0,
-      page_end: item.pageEnd || item.page_end || 0,
-      token_count: item.tokenCount || item.token_count || 0,
-      embedding: item.embedding
-    };
-  }
-
-  private cosineSimilarity(a: number[], b: number[]): number {
-    let dot = 0, normA = 0, normB = 0;
-    for (let i = 0; i < a.length; i++) {
-      dot += a[i] * b[i];
-      normA += a[i] * a[i];
-      normB += b[i] * b[i];
-    }
-    return dot / (Math.sqrt(normA) * Math.sqrt(normB));
   }
 
   close(): void {
     this.db.close();
   }
 }
-
-export default VectorStore;

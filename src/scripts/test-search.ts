@@ -1,12 +1,11 @@
 /**
  * test-search.ts — Verificación forense de vectorStore.search()
- * Compatible con API v2.0 (TextChunk, RetrievedChunk, SourceDocument, Domain)
+ * Compatible con API v3.0 (sqlite-vec, Chunk, RetrievedChunk)
  * Uso: npx tsx src/scripts/test-search.ts
  */
 
 import path from "path";
 import { VectorStore } from "../lib/rag/vectorStore";
-import { TextChunk, Domain, SourceDocument } from "../lib/rag/types";
 
 const DB_PATH = path.resolve(process.cwd(), "data/vectors/test-fukuoka.db");
 
@@ -23,7 +22,7 @@ function makeDummyEmbedding(dim = 1536, seed = 42): number[] {
 }
 
 function main() {
-  console.log("🔍 Test de vectorStore.search() — CDSS MTC Premium v2.0\n");
+  console.log("🔍 Test de vectorStore.search() — CDSS MTC Premium v3.0\n");
 
   // Usar DB de test para no contaminar la producción
   const store = new VectorStore(DB_PATH);
@@ -32,19 +31,16 @@ function main() {
   store.clearDomain("mtc-core");
 
   // 1. Insertar documento fuente
-  const doc: SourceDocument = {
+  store.upsertDocument({
     id: "mtc-core_test_shu_mu",
     domain: "mtc-core",
     filename: "test_shu_mu.pdf",
     title: "Técnica Shu-Mu",
-    author: "CEMeTC",
     totalPages: 200,
-    ingestedAt: new Date().toISOString(),
-  };
-  store.upsertDocument(doc);
+  });
 
   // 2. Insertar chunks de prueba
-  const chunks: TextChunk[] = [
+  const chunks = [
     {
       id: "chunk-001",
       documentId: "mtc-core_test_shu_mu",
@@ -92,7 +88,7 @@ function main() {
   console.log("🔎 Query idéntica a chunk-001 (Shu-Mu)...");
   const results = store.search(queryEmbedding, {
     domains: ["mtc-core"],
-    topK: 3,
+    limit: 3,
     minSimilarity: 0.0,
   });
 
@@ -102,8 +98,8 @@ function main() {
       `   [${i + 1}] sim=${r.similarity.toFixed(4)} | chunk=${r.id} | doc=${r.documentId}`
     );
     console.log(`       content: ${r.content.substring(0, 90)}...`);
-    console.log(`       pages: ${r.pageStart}-${r.pageEnd} | tokens: ${r.tokenCount}`);
-    console.log(`       source: ${r.document.title} by ${r.document.author}\n`);
+    console.log(`       pages: ${r.pageStart}-${r.pageEnd}`);
+    console.log(`       source: ${typeof r.document === 'string' ? r.document : JSON.stringify(r.document)}\n`);
   });
 
   // 5. Validaciones
@@ -118,7 +114,7 @@ function main() {
   // 6. Threshold alto
   const strict = store.search(queryEmbedding, {
     domains: ["mtc-core"],
-    topK: 5,
+    limit: 5,
     minSimilarity: 0.999,
   });
   console.log(`\n🔒 Threshold 0.999: ${strict.length} resultados (esperado: 1)`);
@@ -132,7 +128,7 @@ function main() {
   // 7. Filtro por dominio (dominio inexistente)
   const empty = store.search(queryEmbedding, {
     domains: ["farmacopea"],
-    topK: 5,
+    limit: 5,
     minSimilarity: 0.0,
   });
   console.log(`\n📂 Filtro domain='farmacopea': ${empty.length} resultados (esperado: 0)`);

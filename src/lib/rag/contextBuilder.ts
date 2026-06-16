@@ -1,9 +1,8 @@
 // src/lib/rag/contextBuilder.ts
-// RAG Context Builder v2.2-fix
-// Importa Embedder correctamente para ESM/Next.js
+// RAG Context Builder v3.0 — sqlite-vec, sin hacks
 
 import { VectorStore, RetrievedChunk } from './vectorStore';
-import { Embedder } from './embedder';  // ← Import estático ESM
+import { Embedder } from './embedder';
 
 export interface RAGContext {
   context: string;
@@ -33,45 +32,19 @@ const SOURCE_MAP: Record<string, string> = {
   'mtc-core_Celulas_del_Sistema_Nervioso': 'CEMeTC — Sistema Nervioso',
   'mtc-core_Dolor_y_Cefalea': 'CEMeTC — Dolor y Cefalea',
   'mtc-core_El_interrogatorio': 'CEMeTC — El Interrogatorio',
-  'bensky_materia_medica.pdf': 'Bensky — Materia Medica',
-  'bensky_formulas.pdf': 'Bensky — Formulas and Strategies',
-  'nogueira_manual_acupuntura.pdf': 'Nogueira — Manual de Acupuntura',
-  'van_nghi_canon.pdf': 'Van Nghi — Canon de Medicina China',
-  'van_nghi_meridianos.pdf': 'Van Nghi — Meridianos',
-  'chen_john_herb_drug.pdf': 'Chen J.K. — Herb-Drug Interactions',
-  'chen_tina_pediatrics.pdf': 'Chen T.T. — Pediatrics',
-  'ucla_east_west.pdf': 'UCLA — Center for East-West Medicine',
-  'mskcc_integrative.pdf': 'MSKCC — Integrative Medicine',
-  'cemtc_base.pdf': 'CEMeTC — Base Documental',
+  'bensky_materia_medica': 'Bensky — Materia Medica',
+  'bensky_formulas': 'Bensky — Formulas and Strategies',
+  'nogueira_manual_acupuntura': 'Nogueira — Manual de Acupuntura',
+  'van_nghi_canon': 'Van Nghi — Canon de Medicina China',
+  'van_nghi_meridianos': 'Van Nghi — Meridianos',
+  'cemtc_base': 'CEMeTC — Base Documental',
 };
 
 function getDisplayName(documentId: string | null | undefined): string {
-  if (!documentId || documentId.trim() === '') {
-    return 'Fuente desconocida';
-  }
+  if (!documentId) return 'Fuente desconocida';
   if (SOURCE_MAP[documentId]) return SOURCE_MAP[documentId];
-  const withoutExt = documentId.replace(/\.pdf$/i, '');
-  if (SOURCE_MAP[withoutExt + '.pdf']) return SOURCE_MAP[withoutExt + '.pdf'];
-  const lower = documentId.toLowerCase();
-  for (const [key, value] of Object.entries(SOURCE_MAP)) {
-    if (lower.includes(key.replace('.pdf', '').toLowerCase())) return value;
-  }
-  return documentId.replace(/_/g, ' ').replace(/\.pdf$/i, '').replace(/\b\w/g, l => l.toUpperCase());
-}
-
-/**
- * Genera embedding de query usando Embedder real.
- */
-async function generateQueryEmbedding(query: string): Promise<number[]> {
-  try {
-    const embedder = new Embedder();
-    const embedding = await embedder.embedQuery(query);
-    console.log(`[RAG] Embedding real: ${embedding.length} dims`);
-    return embedding;
-  } catch (e: any) {
-    console.error(`[RAG] Embedder falló: ${e.message}`);
-    throw new Error(`No se pudo generar embedding para RAG: ${e.message}`);
-  }
+  const base = documentId.replace(/^mtc-core_/, '').replace(/_/g, ' ');
+  return base.replace(/\b\w/g, l => l.toUpperCase());
 }
 
 export async function buildRAGContext(options: {
@@ -92,9 +65,10 @@ export async function buildRAGContext(options: {
   } = options;
 
   const store = new VectorStore(dbPath);
+  const embedder = new Embedder();
 
   try {
-    const queryEmbedding = await generateQueryEmbedding(query);
+    const queryEmbedding = await embedder.embedQuery(query);
 
     const chunks = store.search(queryEmbedding, {
       domain,
@@ -103,9 +77,9 @@ export async function buildRAGContext(options: {
       minSimilarity
     });
 
-    console.log(`[RAG] Recuperados ${chunks.length} chunks:`);
+    console.log(`[RAG] Recuperados ${chunks.length} chunks (minSim=${minSimilarity}):`);
     chunks.forEach((chunk: RetrievedChunk, i: number) => {
-      console.log(`  [${i}] sim=${chunk.similarity?.toFixed(3)} | doc="${chunk.document}" | content="${chunk.content?.substring(0, 50)}..."`);
+      console.log(`  [${i}] sim=${chunk.similarity?.toFixed(3)} | doc="${chunk.document}" | ${chunk.content?.substring(0, 50)}...`);
     });
 
     if (chunks.length === 0) {
@@ -128,7 +102,7 @@ export async function buildRAGContext(options: {
       citations.push({
         id: chunk.id,
         document: displayName,
-        documentId: chunk.document || 'unknown',
+        documentId: chunk.documentId,
         pageStart: chunk.pageStart,
         pageEnd: chunk.pageEnd,
         similarity: chunk.similarity,
