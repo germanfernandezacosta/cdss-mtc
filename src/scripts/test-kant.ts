@@ -3,8 +3,8 @@
  * Uso: npx tsx src/scripts/test-kant.ts
  */
 
-import { KantEngine, evaluateSafety } from "../lib/kant/engine";
-import { PatientSafetyProfile, ProposedTreatment } from "../lib/kant/types";
+import { KantEngine, evaluateSafety } from "../lib/kant/engine-compat";
+import { PatientSafetyProfile, ProposedTreatment } from "../lib/kant/types-compat";
 
 function testCase(
   name: string,

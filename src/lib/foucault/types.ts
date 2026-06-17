@@ -3,7 +3,7 @@
  * Adaptado a KANT v2.2 con campos legacy para compatibilidad.
  */
 
-import { KantResult } from "@/lib/kant/types";
+import { KantResult } from "@/lib/kant/types-compat";
 
 export interface FoucaultPatientContext {
   id: string;

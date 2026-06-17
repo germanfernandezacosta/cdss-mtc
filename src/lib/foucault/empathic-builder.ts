@@ -13,7 +13,7 @@ export function buildEmpathicData(input: FoucaultInput): EmpathicPdfData {
   const syndrome = fukuokaResult.data.syndrome_analysis[0];
   const proposal = fukuokaResult.data.treatment_proposal;
 
-  const normalizedKantStatus = String(kantResult.verdict).toUpperCase();
+  const normalizedKantStatus = String(kantResult.status || '').toUpperCase();
   const isKantRed = normalizedKantStatus === 'ROJO' || normalizedKantStatus === 'RED';
   const isKantYellow = normalizedKantStatus === 'AMARILLO' || normalizedKantStatus === 'YELLOW';
 
@@ -93,7 +93,7 @@ export function buildEmpathicHtml(input: FoucaultInput): { html: string; flags: 
   }
 
   // ─── Estado KANT ───
-  const normalizedKantStatus = String(kantResult.verdict).toUpperCase();
+  const normalizedKantStatus = String(kantResult.status || '').toUpperCase();
   const isKantRed = normalizedKantStatus === 'ROJO' || normalizedKantStatus === 'RED';
   const isKantYellow = normalizedKantStatus === 'AMARILLO' || normalizedKantStatus === 'YELLOW';
 
@@ -138,6 +138,7 @@ export function buildEmpathicHtml(input: FoucaultInput): { html: string; flags: 
   const { sanitized } = sanitizeForAHPRA(empathicText);
   const { flags } = scanTextForAHPRA(empathicText, "empathic_content");
 
+  const kantVerdict = String(kantResult.status || 'N/A');
   const kantColor = isKantRed ? '#dc2626' : isKantYellow ? '#d97706' : '#16a34a';
 
   const html = `<!DOCTYPE html>
@@ -177,7 +178,7 @@ export function buildEmpathicHtml(input: FoucaultInput): { html: string; flags: 
 
   <div class="footer">
     <p>Este documento ha sido generado por un sistema de soporte clinico y revisado por filtros de seguridad. Tu terapeuta registrado tiene la ultima palabra sobre cualquier tratamiento.</p>
-    <p class="status" style="color: ${kantColor};">Estado de validacion de seguridad: ${kantResult.verdict}</p>
+    <p class="status" style="color: ${kantColor};">Estado de validacion de seguridad: ${kantVerdict}</p>
   </div>
 </body>
 </html>`;

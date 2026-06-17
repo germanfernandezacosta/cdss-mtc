@@ -4,8 +4,8 @@
  * Uso: npx tsx src/scripts/test-kant-v21.ts
  */
 
-import { evaluateSafety } from "@/lib/kant/engine";
-import { PatientSafetyProfile, ProposedTreatment } from "@/lib/kant/types";
+import { evaluateSafety } from "@/lib/kant/engine-compat";
+import { PatientSafetyProfile, ProposedTreatment } from "@/lib/kant/types-compat";
 
 function test(
   name: string,

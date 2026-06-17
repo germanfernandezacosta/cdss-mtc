@@ -5,6 +5,19 @@ import { FoucaultInput } from './types';
 
 export function buildForensicData(input: FoucaultInput): ForensicPdfData {
   const { patient, clinicalInput, fukuokaResult, kantResult, generatedAt } = input;
+  const kantContraindications = Array.isArray(kantResult.contraindications)
+    ? kantResult.contraindications
+    : [];
+  const kantAuditTrail = Array.isArray(kantResult.auditTrail)
+    ? kantResult.auditTrail
+    : kantContraindications.map((c: any) => `[AUDIT] ${c.item}: ${c.reason}`);
+  const kantScore =
+    typeof kantResult.score === 'number'
+      ? kantResult.score
+      : kantContraindications.length > 0
+      ? 50
+      : 100;
+  const kantStatus = kantScore <= 30 ? 'red' : kantScore <= 70 ? 'yellow' : 'green';
 
   return {
     patient: {
@@ -169,11 +182,6 @@ export function buildForensicData(input: FoucaultInput): ForensicPdfData {
       followUpPlan: undefined,
       expectedOutcomes: undefined,
       redFlags: undefined,
-      referralNeeded: kantResult.verdict === 'ROJO',
-      referralTo: kantResult.verdict === 'ROJO' ? 'General Practitioner / Emergency' : undefined,
-      referralReason: kantResult.violations.length > 0 
-        ? kantResult.violations.map((v: { message: string }) => v.message).join('; ')
-        : undefined,
 
       // Consentimiento
       informedConsent: undefined,
@@ -184,11 +192,11 @@ export function buildForensicData(input: FoucaultInput): ForensicPdfData {
       privacyAcknowledged: undefined,
     },
     kant: {
-      status: kantResult.verdict === 'ROJO' ? 'red' : kantResult.verdict === 'AMARILLO' ? 'yellow' : 'green',
-      score: kantResult.score || (kantResult.violations.length > 0 ? 50 : 100), // Si hay violaciones pero no score, asumimos 0. Si no hay violaciones y no hay score, asumimos 100.
-      alerts: JSON.stringify(kantResult.violations || []),
-      contraindications: JSON.stringify(kantResult.contraindications || []),
-      auditTrail: JSON.stringify(kantResult.auditTrail || kantResult.violations || []), // Si no hay auditTrail, usamos las violaciones como proxy para el historial de auditoría
+      status: kantStatus,
+      score: kantScore,
+      alerts: JSON.stringify(kantResult.alerts || []),
+      contraindications: JSON.stringify(kantContraindications),
+      auditTrail: JSON.stringify(kantAuditTrail),
     },
     rag: {
       citations: undefined,
@@ -198,7 +206,7 @@ export function buildForensicData(input: FoucaultInput): ForensicPdfData {
       ragChunksUsed: undefined,
       openrouterModel: 'GPT-4o-mini',
       generationTimestamp: new Date().toISOString(),
-      forensicHash: kantResult.originalProposalHash,
+      forensicHash: (kantResult as any)._internalVerdict?.hash || 'unknown',
     },
   };
 }

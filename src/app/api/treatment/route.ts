@@ -4,7 +4,7 @@
 // FIX v3.0: Corregido orden de variables, ehrId consistente, campos NOT NULL completos
 
 import { NextRequest, NextResponse } from 'next/server';
-import { KantEngine } from '@/lib/kant/engine';
+import { KantEngine } from '@/lib/kant/engine-compat';
 import { buildRAGContext } from '@/lib/rag/contextBuilder';
 import { generateTreatment, parseNotebookLMResponse } from '@/lib/fukuoka-h/engine';
 import { deidentifyPatient } from '@/lib/privacy/deidentify';
@@ -216,7 +216,7 @@ CONTEXTO DOCUMENTAL (RAG):
 ${ragContext.context || 'Sin contexto documental disponible.'}
 
 REGLAS DE SEGURIDAD (KANT):
-${kantProfile.auditTrail?.join('\n') || 'Sin advertencias previas'}
+${kantProfile.auditTrail?.join('\n') || 'Sin traza de auditoría previa'}
 ${kantProfile.contraindications?.length > 0 ? '\nCONTRAINDICACIONES ACTIVAS:\n' + kantProfile.contraindications.map((c: any) => `- ${c.item}: ${c.reason}`).join('\n') : ''}
 ${safetyPrefix}
 ${feedbackBlock}`;
